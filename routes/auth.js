@@ -128,6 +128,99 @@ router.put('/updateprofile', protect, async (req, res) => {
   }
 });
 
+// Actualizar contraseña
+router.put('/updatepassword', protect, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Contraseña actual y nueva contraseña son requeridas'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'La nueva contraseña debe tener al menos 6 caracteres'
+      });
+    }
+
+    const user = await User.findById(req.user.id).select('+password');
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        error: 'Contraseña actual incorrecta'
+      });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Contraseña actualizada correctamente'
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Obtener todos los usuarios (solo admin)
+router.get('/users', protect, authorize('admin'), async (req, res) => {
+  try {
+    const { isActive } = req.query;
+    let query = {};
+
+    if (isActive !== undefined) {
+      query.isActive = isActive === 'true';
+    }
+
+    const users = await User.find(query).sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      count: users.length,
+      data: users
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Obtener un usuario específico (solo admin)
+router.get('/users/:id', protect, authorize('admin'), async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuario no encontrado'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Actualizar rol (solo admin)
 router.put('/users/:id/role', protect, authorize('admin'), async (req, res) => {
   try {
@@ -136,20 +229,84 @@ router.put('/users/:id/role', protect, authorize('admin'), async (req, res) => {
       { role: req.body.role },
       { new: true, runValidators: true }
     );
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,
         error: 'Usuario no encontrado'
       });
     }
-    
+
     res.json({
       success: true,
       data: user
     });
   } catch (error) {
     res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Desactivar usuario (soft delete, solo admin)
+router.delete('/users/:id', protect, authorize('admin'), async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuario no encontrado'
+      });
+    }
+
+    // Prevenir que el admin se desactive a sí mismo
+    if (user._id.toString() === req.user.id.toString()) {
+      return res.status(400).json({
+        success: false,
+        error: 'No puedes desactivar tu propia cuenta'
+      });
+    }
+
+    user.isActive = false;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Usuario desactivado correctamente',
+      data: user
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Reactivar usuario (solo admin)
+router.patch('/users/:id/reactivate', protect, authorize('admin'), async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuario no encontrado'
+      });
+    }
+
+    user.isActive = true;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Usuario reactivado correctamente',
+      data: user
+    });
+  } catch (error) {
+    res.status(500).json({
       success: false,
       error: error.message
     });

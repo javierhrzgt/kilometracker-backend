@@ -79,9 +79,36 @@ All responses follow this structure:
 ### Route Protection Patterns
 
 - Public: `/api/auth/register`, `/api/auth/login`
-- Protected (all authenticated): GET operations, stats
+- Protected (all authenticated): GET operations, stats, password change
 - Write operations: Require `write` or `admin` role
-- Admin-only: User role management
+- Admin-only: User management (list users, view user details, update roles, deactivate/reactivate users)
+
+### User Management (Admin Endpoints)
+
+**List All Users:**
+- `GET /api/auth/users?isActive=true` - Filter by active status (optional)
+- Returns all users sorted by creation date (newest first)
+
+**View Specific User:**
+- `GET /api/auth/users/:id` - Get user details by ID
+
+**Update User Role:**
+- `PUT /api/auth/users/:id/role` - Body: `{ role: "read" | "write" | "admin" }`
+
+**Deactivate User:**
+- `DELETE /api/auth/users/:id` - Soft delete (sets isActive to false)
+- Prevents admins from deactivating themselves
+
+**Reactivate User:**
+- `PATCH /api/auth/users/:id/reactivate` - Restores isActive to true
+
+### Password Management
+
+**Change Password:**
+- `PUT /api/auth/updatepassword` - Any authenticated user
+- Body: `{ currentPassword: string, newPassword: string }`
+- Validates current password before allowing change
+- Enforces minimum 6 character length
 
 ## Common Patterns
 
