@@ -151,23 +151,24 @@ router.put('/:id', protect, authorize('write', 'admin'), async (req, res) => {
   }
 });
 
-// Eliminar reabastecimiento
+// Eliminar reabastecimiento (soft delete)
 router.delete('/:id', protect, authorize('write', 'admin'), async (req, res) => {
   try {
     const refuel = await Refuel.findOne({
       _id: req.params.id,
       owner: req.user.id
     });
-    
+
     if (!refuel) {
       return res.status(404).json({
         success: false,
         error: 'Reabastecimiento no encontrado'
       });
     }
-    
-    await refuel.deleteOne();
-    
+
+    refuel.isActive = false;
+    await refuel.save();
+
     res.json({
       success: true,
       message: 'Reabastecimiento eliminado correctamente'

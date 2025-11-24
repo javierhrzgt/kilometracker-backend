@@ -40,11 +40,12 @@ Copy `.env.example` to `.env` and configure:
 
 ### Data Model Relationships
 
-**User** → owns → **Vehicle** → contains → **Route** and **Refuel**
+**User** → owns → **Vehicle** → contains → **Route**, **Refuel**, **Maintenance**, and **Expense**
 
 - All models include `owner` field referencing User
+- All models use soft delete pattern with `isActive` field (default: true)
 - Vehicle has `alias` (unique uppercase identifier) instead of _id for routes
-- Routes and Refuels reference both `vehicle` (ObjectId) and `vehicleAlias` (String)
+- Routes, Refuels, Maintenance, and Expenses reference both `vehicle` (ObjectId) and `vehicleAlias` (String)
 - Vehicle `kilometrajeTotal` is automatically updated when routes are created/updated/deleted
 
 ### Key Business Logic
@@ -63,6 +64,20 @@ Copy `.env.example` to `.env` and configure:
 **Refuel Tracking:**
 - Virtual field `precioPorGalon` calculated from `cantidadGastada / galones`
 - Virtuals enabled in JSON/Object responses (models/Refuel.js:48-49)
+- Soft delete: DELETE sets `isActive` to false instead of removing document
+
+**Maintenance Tracking:**
+- Track service types: oil changes, tire rotations, brakes, inspections, repairs, etc.
+- Record cost, date, kilometraje, and service provider
+- Support for scheduled maintenance with `proximoServicioFecha` and `proximoServicioKm`
+- GET /api/maintenance/upcoming returns maintenance due within 30 days or 500km
+
+**Expense Management:**
+- Additional expense categories beyond fuel: insurance, taxes, parking, tolls, etc.
+- Support for recurring expenses with frequency (monthly, quarterly, etc.)
+- Flag tax-deductible expenses with `esDeducibleImpuestos`
+- GET /api/expenses/summary provides aggregated spending by category
+- GET /api/expenses/upcoming shows recurring expenses due in next 30 days
 
 ### API Response Format
 
@@ -110,6 +125,40 @@ All responses follow this structure:
 - Validates current password before allowing change
 - Enforces minimum 6 character length
 
+### Fuel Efficiency Analytics
+
+**Fuel Efficiency Endpoint:**
+- `GET /api/vehicles/:alias/fuel-efficiency?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`
+- Calculates km/liter and km/gallon based on refuels and routes
+- Calculates cost per kilometer
+- Supports date range filtering
+
+**Enhanced Vehicle Statistics:**
+- `GET /api/vehicles/:alias/stats` - Comprehensive vehicle analytics
+- Returns totals for routes, refuels, maintenance, and expenses
+- Breakdown of costs by category (fuel, maintenance, other expenses)
+- Efficiency metrics (km/liter, km/gallon, average distance per route)
+- Total cost of ownership and cost per kilometer
+
+### Maintenance & Expense Endpoints
+
+**Maintenance:**
+- `GET /api/maintenance` - List all maintenance records (filter by vehicleAlias, tipo, date range)
+- `GET /api/maintenance/upcoming` - Maintenance due within 30 days or 500km
+- `GET /api/maintenance/:id` - Get specific maintenance record
+- `POST /api/maintenance` - Create maintenance record
+- `PUT /api/maintenance/:id` - Update maintenance record
+- `DELETE /api/maintenance/:id` - Soft delete maintenance record
+
+**Expenses:**
+- `GET /api/expenses` - List all expenses (filter by vehicleAlias, categoria, date range, tax deductible)
+- `GET /api/expenses/summary` - Aggregated spending by category
+- `GET /api/expenses/upcoming` - Recurring expenses due in next 30 days
+- `GET /api/expenses/:id` - Get specific expense
+- `POST /api/expenses` - Create expense
+- `PUT /api/expenses/:id` - Update expense
+- `DELETE /api/expenses/:id` - Soft delete expense
+
 ## Common Patterns
 
 ### Finding Vehicles
@@ -131,7 +180,35 @@ Global error middleware in server.js:27-33 catches all errors. Route handlers re
 
 ## Database Indexes
 
-Routes have compound index on `vehicle` and `fecha` for efficient queries (models/Route.js:39).
+- Routes: Compound index on `vehicle` and `fecha` (models/Route.js:43)
+- Maintenance: Compound indexes on `vehicle + fecha` and `vehicle + tipo` (models/Maintenance.js:68-69)
+- Expenses: Compound indexes on `vehicle + fecha`, `vehicle + categoria`, and `owner + esDeducibleImpuestos` (models/Expense.js:61-63)
+
+## API Improvements
+
+### Rate Limiting
+
+Rate limiting is applied to prevent abuse:
+- General API rate limit: 100 requests per 15 minutes (middleware/rateLimiter.js)
+- Auth endpoints: 5 requests per 15 minutes (stricter for login/register)
+- Returns 429 status with `retryAfter` seconds when limit exceeded
+- In-memory implementation (clears old entries every hour)
+
+### Soft Delete Pattern
+
+All main entities (User, Vehicle, Route, Refuel, Maintenance, Expense) use soft delete:
+- DELETE operations set `isActive: false` instead of removing documents
+- Allows data recovery and maintains referential integrity
+- List endpoints can filter by `?isActive=true` or `?isActive=false`
+- Stats endpoints typically filter for active records only
+
+### Pagination Utility
+
+Pagination helper available in `utils/pagination.js`:
+- `paginate(query, page, limit)` - Apply pagination to Mongoose query
+- `getPaginationData(total, page, limit)` - Generate pagination metadata
+- Default limit: 10, max limit: 100
+- Returns: total, page, limit, totalPages, hasNextPage, hasPrevPage, nextPage, prevPage
 
 ## Password Security
 

@@ -178,31 +178,32 @@ router.put('/:id', protect, authorize('write', 'admin'), async (req, res) => {
   }
 });
 
-// Eliminar ruta
+// Eliminar ruta (soft delete)
 router.delete('/:id', protect, authorize('write', 'admin'), async (req, res) => {
   try {
     const route = await Route.findOne({
       _id: req.params.id,
       owner: req.user.id
     });
-    
+
     if (!route) {
       return res.status(404).json({
         success: false,
         error: 'Ruta no encontrada'
       });
     }
-    
+
     const vehicle = await Vehicle.findById(route.vehicle);
-    
-    if (vehicle) {
-      // Restar la distancia del kilometraje total
+
+    if (vehicle && route.isActive) {
+      // Restar la distancia del kilometraje total solo si está activa
       vehicle.kilometrajeTotal -= route.distanciaRecorrida;
       await vehicle.save();
     }
-    
-    await route.deleteOne();
-    
+
+    route.isActive = false;
+    await route.save();
+
     res.json({
       success: true,
       message: 'Ruta eliminada correctamente',
