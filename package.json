@@ -20,5 +20,17 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/javierhrzgt/kilometracker-backend.git"
+  },
+  "keywords": [
+    "node",
+    "expressjs"
+  ],
+  "bugs": {
+    "url": "https://github.com/javierhrzgt/kilometracker-backend/issues"
+  },
+  "homepage": "https://github.com/javierhrzgt/kilometracker-backend#readme"
 }
