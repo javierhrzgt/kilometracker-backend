@@ -55,12 +55,12 @@ exports.rateLimiter = (options = {}) => {
 // Rate limiter específico para autenticación (más restrictivo)
 exports.authLimiter = exports.rateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 50, // 50 intentos
+  max: 100, // 50 intentos
   message: 'Demasiados intentos de login, por favor intenta de nuevo en 15 minutos'
 });
 
 // Rate limiter general para la API
 exports.apiLimiter = exports.rateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100 // 100 requests
+  max: 500 // 100 requests
 });
