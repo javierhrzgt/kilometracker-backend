@@ -62,7 +62,7 @@ router.get('/:id', protect, async (req, res) => {
 // Crear reabastecimiento
 router.post('/', protect, authorize('write', 'admin'), async (req, res) => {
   try {
-    const { vehicleAlias, tipoCombustible, cantidadGastada, galones } = req.body;
+    const { vehicleAlias, tipoCombustible, cantidadGastada, galones, fecha } = req.body;
     
     const vehicle = await Vehicle.findOne({
       alias: vehicleAlias.toUpperCase(),
@@ -83,6 +83,7 @@ router.post('/', protect, authorize('write', 'admin'), async (req, res) => {
       tipoCombustible,
       cantidadGastada,
       galones: galones || null,
+      fecha: fecha || Date.now(),
       owner: req.user.id
     });
     
@@ -136,7 +137,8 @@ router.put('/:id', protect, authorize('write', 'admin'), async (req, res) => {
     if (req.body.tipoCombustible) refuel.tipoCombustible = req.body.tipoCombustible;
     if (req.body.cantidadGastada) refuel.cantidadGastada = req.body.cantidadGastada;
     if (req.body.galones !== undefined) refuel.galones = req.body.galones;
-    
+    if (req.body.fecha !== undefined) refuel.fecha = req.body.fecha;
+
     await refuel.save();
     
     res.json({
@@ -151,7 +153,7 @@ router.put('/:id', protect, authorize('write', 'admin'), async (req, res) => {
   }
 });
 
-// Eliminar reabastecimiento (soft delete)
+// Eliminar reabastecimiento (permanent delete)
 router.delete('/:id', protect, authorize('write', 'admin'), async (req, res) => {
   try {
     const refuel = await Refuel.findOne({
@@ -166,8 +168,7 @@ router.delete('/:id', protect, authorize('write', 'admin'), async (req, res) => 
       });
     }
 
-    refuel.isActive = false;
-    await refuel.save();
+    await Refuel.deleteOne({ _id: req.params.id });
 
     res.json({
       success: true,

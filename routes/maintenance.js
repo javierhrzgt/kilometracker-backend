@@ -7,7 +7,7 @@ const { protect, authorize } = require('../middleware/auth');
 // Obtener todos los mantenimientos
 router.get('/', protect, async (req, res) => {
   try {
-    const { vehicleAlias, tipo, startDate, endDate, isActive } = req.query;
+    const { vehicleAlias, tipo, startDate, endDate } = req.query;
     let query = { owner: req.user.id };
 
     if (vehicleAlias) {
@@ -16,10 +16,6 @@ router.get('/', protect, async (req, res) => {
 
     if (tipo) {
       query.tipo = tipo;
-    }
-
-    if (isActive !== undefined) {
-      query.isActive = isActive === 'true';
     }
 
     if (startDate || endDate) {
@@ -54,7 +50,6 @@ router.get('/upcoming', protect, async (req, res) => {
 
     const maintenances = await Maintenance.find({
       owner: req.user.id,
-      isActive: true,
       $or: [
         {
           proximoServicioFecha: {
@@ -245,7 +240,7 @@ router.put('/:id', protect, authorize('write', 'admin'), async (req, res) => {
   }
 });
 
-// Eliminar mantenimiento (soft delete)
+// Eliminar mantenimiento (permanent delete)
 router.delete('/:id', protect, authorize('write', 'admin'), async (req, res) => {
   try {
     const maintenance = await Maintenance.findOne({
@@ -260,8 +255,7 @@ router.delete('/:id', protect, authorize('write', 'admin'), async (req, res) => 
       });
     }
 
-    maintenance.isActive = false;
-    await maintenance.save();
+    await Maintenance.deleteOne({ _id: req.params.id });
 
     res.json({
       success: true,

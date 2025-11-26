@@ -43,7 +43,8 @@ Copy `.env.example` to `.env` and configure:
 **User** → owns → **Vehicle** → contains → **Route**, **Refuel**, **Maintenance**, and **Expense**
 
 - All models include `owner` field referencing User
-- All models use soft delete pattern with `isActive` field (default: true)
+- User and Vehicle models use soft delete pattern with `isActive` field (default: true)
+- Routes, Refuels, Maintenance, and Expenses use permanent delete
 - Vehicle has `alias` (unique uppercase identifier) instead of _id for routes
 - Routes, Refuels, Maintenance, and Expenses reference both `vehicle` (ObjectId) and `vehicleAlias` (String)
 - Vehicle `kilometrajeTotal` is automatically updated when routes are created/updated/deleted
@@ -58,13 +59,13 @@ Copy `.env.example` to `.env` and configure:
 **Route Management:**
 - Creating a route increments vehicle's `kilometrajeTotal` (routes/routesVehicle.js:95)
 - Updating a route recalculates distance difference and updates vehicle (routes/routesVehicle.js:155-160)
-- Deleting a route decrements vehicle's `kilometrajeTotal` (routes/routesVehicle.js:200)
+- Deleting a route decrements vehicle's `kilometrajeTotal` and permanently removes the record (routes/routesVehicle.js:204)
 - Only active vehicles can have new routes created
 
 **Refuel Tracking:**
 - Virtual field `precioPorGalon` calculated from `cantidadGastada / galones`
 - Virtuals enabled in JSON/Object responses (models/Refuel.js:48-49)
-- Soft delete: DELETE sets `isActive` to false instead of removing document
+- Permanent delete: DELETE permanently removes the refuel record
 
 **Maintenance Tracking:**
 - Track service types: oil changes, tire rotations, brakes, inspections, repairs, etc.
@@ -148,7 +149,7 @@ All responses follow this structure:
 - `GET /api/maintenance/:id` - Get specific maintenance record
 - `POST /api/maintenance` - Create maintenance record
 - `PUT /api/maintenance/:id` - Update maintenance record
-- `DELETE /api/maintenance/:id` - Soft delete maintenance record
+- `DELETE /api/maintenance/:id` - Permanently delete maintenance record
 
 **Expenses:**
 - `GET /api/expenses` - List all expenses (filter by vehicleAlias, categoria, date range, tax deductible)
@@ -157,7 +158,7 @@ All responses follow this structure:
 - `GET /api/expenses/:id` - Get specific expense
 - `POST /api/expenses` - Create expense
 - `PUT /api/expenses/:id` - Update expense
-- `DELETE /api/expenses/:id` - Soft delete expense
+- `DELETE /api/expenses/:id` - Permanently delete expense
 
 ## Common Patterns
 
@@ -194,13 +195,19 @@ Rate limiting is applied to prevent abuse:
 - Returns 429 status with `retryAfter` seconds when limit exceeded
 - In-memory implementation (clears old entries every hour)
 
-### Soft Delete Pattern
+### Delete Patterns
 
-All main entities (User, Vehicle, Route, Refuel, Maintenance, Expense) use soft delete:
+**Soft Delete (User and Vehicle only):**
 - DELETE operations set `isActive: false` instead of removing documents
 - Allows data recovery and maintains referential integrity
 - List endpoints can filter by `?isActive=true` or `?isActive=false`
-- Stats endpoints typically filter for active records only
+- User DELETE endpoint prevents admins from deactivating themselves
+- REACTIVATE endpoints restore `isActive` to true
+
+**Permanent Delete (Route, Refuel, Maintenance, Expense):**
+- DELETE operations permanently remove documents from the database
+- Route deletion also decrements the vehicle's `kilometrajeTotal`
+- No recovery option once deleted
 
 ### Pagination Utility
 

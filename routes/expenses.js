@@ -7,7 +7,7 @@ const { protect, authorize } = require('../middleware/auth');
 // Obtener todos los gastos
 router.get('/', protect, async (req, res) => {
   try {
-    const { vehicleAlias, categoria, startDate, endDate, esDeducibleImpuestos, isActive } = req.query;
+    const { vehicleAlias, categoria, startDate, endDate, esDeducibleImpuestos } = req.query;
     let query = { owner: req.user.id };
 
     if (vehicleAlias) {
@@ -20,10 +20,6 @@ router.get('/', protect, async (req, res) => {
 
     if (esDeducibleImpuestos !== undefined) {
       query.esDeducibleImpuestos = esDeducibleImpuestos === 'true';
-    }
-
-    if (isActive !== undefined) {
-      query.isActive = isActive === 'true';
     }
 
     if (startDate || endDate) {
@@ -53,7 +49,7 @@ router.get('/', protect, async (req, res) => {
 router.get('/summary', protect, async (req, res) => {
   try {
     const { vehicleAlias, startDate, endDate } = req.query;
-    let matchQuery = { owner: req.user.id, isActive: true };
+    let matchQuery = { owner: req.user.id };
 
     if (vehicleAlias) {
       matchQuery.vehicleAlias = vehicleAlias.toUpperCase();
@@ -104,7 +100,6 @@ router.get('/upcoming', protect, async (req, res) => {
 
     const expenses = await Expense.find({
       owner: req.user.id,
-      isActive: true,
       esRecurrente: true,
       proximoPago: {
         $gte: today,
@@ -277,7 +272,7 @@ router.put('/:id', protect, authorize('write', 'admin'), async (req, res) => {
   }
 });
 
-// Eliminar gasto (soft delete)
+// Eliminar gasto (permanent delete)
 router.delete('/:id', protect, authorize('write', 'admin'), async (req, res) => {
   try {
     const expense = await Expense.findOne({
@@ -292,8 +287,7 @@ router.delete('/:id', protect, authorize('write', 'admin'), async (req, res) => 
       });
     }
 
-    expense.isActive = false;
-    await expense.save();
+    await Expense.deleteOne({ _id: req.params.id });
 
     res.json({
       success: true,
