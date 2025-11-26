@@ -272,10 +272,10 @@ router.get('/:alias/stats', protect, async (req, res) => {
       });
     }
 
-    const routes = await Route.find({ vehicle: vehicle._id, isActive: true });
-    const refuels = await Refuel.find({ vehicle: vehicle._id, isActive: true });
-    const maintenances = await Maintenance.find({ vehicle: vehicle._id, isActive: true });
-    const expenses = await Expense.find({ vehicle: vehicle._id, isActive: true });
+    const routes = await Route.find({ vehicle: vehicle._id });
+    const refuels = await Refuel.find({ vehicle: vehicle._id });
+    const maintenances = await Maintenance.find({ vehicle: vehicle._id });
+    const expenses = await Expense.find({ vehicle: vehicle._id });
 
     const totalRoutes = routes.length;
     const totalRefuels = refuels.length;

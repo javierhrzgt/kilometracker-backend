@@ -559,7 +559,6 @@ Authorization: Bearer <your_jwt_token>
       "distanciaRecorrida": 150.5,
       "notasAdicionales": "Viaje a la playa",
       "owner": "string",
-      "isActive": true,
       "createdAt": "date",
       "updatedAt": "date"
     }
@@ -590,8 +589,7 @@ Authorization: Bearer <your_jwt_token>
     "fecha": "2024-11-24T10:30:00.000Z",
     "distanciaRecorrida": 150.5,
     "notasAdicionales": "string",
-    "owner": "string",
-    "isActive": true
+    "owner": "string"
   }
 }
 ```
@@ -624,8 +622,7 @@ Authorization: Bearer <your_jwt_token>
     "fecha": "date",
     "distanciaRecorrida": 150.5,
     "notasAdicionales": "string",
-    "owner": "string",
-    "isActive": true
+    "owner": "string"
   },
   "vehicleKilometraje": 15150.5
 }
@@ -664,10 +661,12 @@ Authorization: Bearer <your_jwt_token>
 
 ---
 
-### Delete Route (Soft Delete)
+### Delete Route (Permanent Delete)
 **DELETE** `/api/routes/:id`
 
 **Auth Required:** Yes (Write or Admin role)
+
+**Note:** This permanently deletes the route and decrements the vehicle's kilometrajeTotal. This action cannot be undone.
 
 **Response (200):**
 ```json
@@ -710,7 +709,6 @@ Authorization: Bearer <your_jwt_token>
       "galones": 10,
       "fecha": "2024-11-24T10:30:00.000Z",
       "owner": "string",
-      "isActive": true,
       "precioPorGalon": "50.00",
       "createdAt": "date",
       "updatedAt": "date"
@@ -744,7 +742,6 @@ Authorization: Bearer <your_jwt_token>
     "galones": 10,
     "fecha": "date",
     "owner": "string",
-    "isActive": true,
     "precioPorGalon": "50.00"
   }
 }
@@ -780,7 +777,6 @@ Authorization: Bearer <your_jwt_token>
     "galones": 10,
     "fecha": "date",
     "owner": "string",
-    "isActive": true,
     "precioPorGalon": "50.00"
   }
 }
@@ -819,10 +815,12 @@ Authorization: Bearer <your_jwt_token>
 
 ---
 
-### Delete Refuel (Soft Delete)
+### Delete Refuel (Permanent Delete)
 **DELETE** `/api/refuels/:id`
 
 **Auth Required:** Yes (Write or Admin role)
+
+**Note:** This permanently deletes the refuel record. This action cannot be undone.
 
 **Response (200):**
 ```json
@@ -876,7 +874,7 @@ Authorization: Bearer <your_jwt_token>
 ## Maintenance Endpoints
 
 ### List All Maintenance Records
-**GET** `/api/maintenance?vehicleAlias=CAR1&tipo=Cambio de aceite&startDate=2024-01-01&endDate=2024-12-31&isActive=true`
+**GET** `/api/maintenance?vehicleAlias=CAR1&tipo=Cambio de aceite&startDate=2024-01-01&endDate=2024-12-31`
 
 **Auth Required:** Yes
 
@@ -885,7 +883,6 @@ Authorization: Bearer <your_jwt_token>
 - `tipo` (optional): Filter by maintenance type
 - `startDate` (optional): "YYYY-MM-DD"
 - `endDate` (optional): "YYYY-MM-DD"
-- `isActive` (optional): "true" | "false"
 
 **Response (200):**
 ```json
@@ -912,7 +909,6 @@ Authorization: Bearer <your_jwt_token>
       "proximoServicioKm": 20000,
       "notas": "Incluye cambio de filtro",
       "owner": "string",
-      "isActive": true,
       "createdAt": "date",
       "updatedAt": "date"
     }
@@ -979,8 +975,7 @@ Authorization: Bearer <your_jwt_token>
     "proveedor": "string",
     "proximoServicioFecha": "date",
     "proximoServicioKm": 20000,
-    "notas": "string",
-    "isActive": true
+    "notas": "string"
   }
 }
 ```
@@ -1025,8 +1020,7 @@ Authorization: Bearer <your_jwt_token>
     "proximoServicioFecha": "date",
     "proximoServicioKm": 20000,
     "notas": "string",
-    "owner": "string",
-    "isActive": true
+    "owner": "string"
   }
 }
 ```
@@ -1069,10 +1063,12 @@ Authorization: Bearer <your_jwt_token>
 
 ---
 
-### Delete Maintenance (Soft Delete)
+### Delete Maintenance (Permanent Delete)
 **DELETE** `/api/maintenance/:id`
 
 **Auth Required:** Yes (Write or Admin role)
+
+**Note:** This permanently deletes the maintenance record. This action cannot be undone.
 
 **Response (200):**
 ```json
@@ -1087,7 +1083,7 @@ Authorization: Bearer <your_jwt_token>
 ## Expense Endpoints
 
 ### List All Expenses
-**GET** `/api/expenses?vehicleAlias=CAR1&categoria=Seguro&startDate=2024-01-01&endDate=2024-12-31&esDeducibleImpuestos=true&isActive=true`
+**GET** `/api/expenses?vehicleAlias=CAR1&categoria=Seguro&startDate=2024-01-01&endDate=2024-12-31&esDeducibleImpuestos=true`
 
 **Auth Required:** Yes
 
@@ -1097,7 +1093,6 @@ Authorization: Bearer <your_jwt_token>
 - `startDate` (optional): "YYYY-MM-DD"
 - `endDate` (optional): "YYYY-MM-DD"
 - `esDeducibleImpuestos` (optional): "true" | "false"
-- `isActive` (optional): "true" | "false"
 
 **Response (200):**
 ```json
@@ -1124,7 +1119,6 @@ Authorization: Bearer <your_jwt_token>
       "esDeducibleImpuestos": true,
       "notas": "Incluye cobertura amplia",
       "owner": "string",
-      "isActive": true,
       "createdAt": "date",
       "updatedAt": "date"
     }
@@ -1228,8 +1222,7 @@ Authorization: Bearer <your_jwt_token>
     "frecuenciaRecurrencia": "Semestral",
     "proximoPago": "date",
     "esDeducibleImpuestos": true,
-    "notas": "string",
-    "isActive": true
+    "notas": "string"
   }
 }
 ```
@@ -1274,8 +1267,7 @@ Authorization: Bearer <your_jwt_token>
     "proximoPago": "date",
     "esDeducibleImpuestos": true,
     "notas": "string",
-    "owner": "string",
-    "isActive": true
+    "owner": "string"
   }
 }
 ```
@@ -1318,10 +1310,12 @@ Authorization: Bearer <your_jwt_token>
 
 ---
 
-### Delete Expense (Soft Delete)
+### Delete Expense (Permanent Delete)
 **DELETE** `/api/expenses/:id`
 
 **Auth Required:** Yes (Write or Admin role)
+
+**Note:** This permanently deletes the expense record. This action cannot be undone.
 
 **Response (200):**
 ```json
@@ -1437,7 +1431,9 @@ All endpoints may return error responses in the following format:
 
 ## Rate Limits
 
-- **Auth Endpoints** (`/api/auth/*`): 50 requests per 15 minutes
+- **Auth Endpoints** (`/api/auth/register`, `/api/auth/login`): 5 requests per 15 minutes
 - **All Other Endpoints**: 100 requests per 15 minutes
 
 When rate limit is exceeded, you'll receive a 429 status code with `retryAfter` in seconds.
+
+**Note:** The strict rate limit on authentication endpoints helps prevent brute-force attacks.
