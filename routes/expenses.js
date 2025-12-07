@@ -3,11 +3,18 @@ const router = express.Router();
 const Expense = require('../models/Expense');
 const Vehicle = require('../models/Vehicle');
 const { protect, authorize } = require('../middleware/auth');
+const {
+  createExpenseValidation,
+  updateExpenseValidation,
+  mongoIdValidation,
+  dateRangeQueryValidation,
+} = require('../middleware/validate');
+const { paginate, getPaginationData } = require('../utils/pagination');
 
 // Obtener todos los gastos
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, dateRangeQueryValidation, async (req, res) => {
   try {
-    const { vehicleAlias, categoria, startDate, endDate, esDeducibleImpuestos } = req.query;
+    const { vehicleAlias, categoria, startDate, endDate, esDeducibleImpuestos, page, limit } = req.query;
     let query = { owner: req.user.id };
 
     if (vehicleAlias) {
@@ -28,14 +35,25 @@ router.get('/', protect, async (req, res) => {
       if (endDate) query.fecha.$lte = new Date(endDate);
     }
 
-    const expenses = await Expense.find(query)
-      .populate('vehicle', 'alias marca modelo')
-      .sort({ fecha: -1 });
+    // Get total count for pagination
+    const total = await Expense.countDocuments(query);
+
+    // Apply pagination
+    const { query: paginatedQuery, page: currentPage, limit: currentLimit } = paginate(
+      Expense.find(query)
+        .populate('vehicle', 'alias marca modelo')
+        .sort({ fecha: -1 }),
+      page,
+      limit
+    );
+
+    const expenses = await paginatedQuery.lean();
 
     res.json({
       success: true,
       count: expenses.length,
-      data: expenses
+      data: expenses,
+      pagination: getPaginationData(total, currentPage, currentLimit)
     });
   } catch (error) {
     res.status(500).json({
@@ -46,7 +64,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // Obtener resumen de gastos por categoría
-router.get('/summary', protect, async (req, res) => {
+router.get('/summary', protect, dateRangeQueryValidation, async (req, res) => {
   try {
     const { vehicleAlias, startDate, endDate } = req.query;
     let matchQuery = { owner: req.user.id };
@@ -107,7 +125,8 @@ router.get('/upcoming', protect, async (req, res) => {
       }
     })
     .populate('vehicle', 'alias marca modelo')
-    .sort({ proximoPago: 1 });
+    .sort({ proximoPago: 1 })
+    .lean();
 
     res.json({
       success: true,
@@ -123,7 +142,7 @@ router.get('/upcoming', protect, async (req, res) => {
 });
 
 // Obtener un gasto por ID
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', protect, mongoIdValidation, async (req, res) => {
   try {
     const expense = await Expense.findOne({
       _id: req.params.id,
@@ -150,7 +169,7 @@ router.get('/:id', protect, async (req, res) => {
 });
 
 // Crear gasto
-router.post('/', protect, authorize('write', 'admin'), async (req, res) => {
+router.post('/', protect, authorize('write', 'admin'), createExpenseValidation, async (req, res) => {
   try {
     const {
       vehicleAlias,
@@ -206,7 +225,7 @@ router.post('/', protect, authorize('write', 'admin'), async (req, res) => {
 });
 
 // Actualizar gasto
-router.put('/:id', protect, authorize('write', 'admin'), async (req, res) => {
+router.put('/:id', protect, authorize('write', 'admin'), mongoIdValidation, updateExpenseValidation, async (req, res) => {
   try {
     const expense = await Expense.findOne({
       _id: req.params.id,
@@ -273,7 +292,7 @@ router.put('/:id', protect, authorize('write', 'admin'), async (req, res) => {
 });
 
 // Eliminar gasto (permanent delete)
-router.delete('/:id', protect, authorize('write', 'admin'), async (req, res) => {
+router.delete('/:id', protect, authorize('write', 'admin'), mongoIdValidation, async (req, res) => {
   try {
     const expense = await Expense.findOne({
       _id: req.params.id,

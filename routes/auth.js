@@ -3,6 +3,14 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
+const {
+  registerValidation,
+  loginValidation,
+  updatePasswordValidation,
+  updateProfileValidation,
+  updateRoleValidation,
+  mongoIdValidation,
+} = require('../middleware/validate');
 
 // Generar JWT
 const generateToken = (id) => {
@@ -12,7 +20,7 @@ const generateToken = (id) => {
 };
 
 // Registro de usuario
-router.post('/register', async (req, res) => {
+router.post('/register', registerValidation, async (req, res) => {
   try {
     const { username, email, password, role } = req.body;
     
@@ -46,16 +54,9 @@ router.post('/register', async (req, res) => {
 });
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/login', loginValidation, async (req, res) => {
   try {
     const { email, password } = req.body;
-    
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email y contraseña son requeridos'
-      });
-    }
     
     const user = await User.findOne({ email }).select('+password');
     
@@ -104,7 +105,7 @@ router.get('/me', protect, async (req, res) => {
 });
 
 // Actualizar perfil
-router.put('/updateprofile', protect, async (req, res) => {
+router.put('/updateprofile', protect, updateProfileValidation, async (req, res) => {
   try {
     const fieldsToUpdate = {
       username: req.body.username,
@@ -129,23 +130,9 @@ router.put('/updateprofile', protect, async (req, res) => {
 });
 
 // Actualizar contraseña
-router.put('/updatepassword', protect, async (req, res) => {
+router.put('/updatepassword', protect, updatePasswordValidation, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        error: 'Contraseña actual y nueva contraseña son requeridas'
-      });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        error: 'La nueva contraseña debe tener al menos 6 caracteres'
-      });
-    }
 
     const user = await User.findById(req.user.id).select('+password');
 
@@ -182,7 +169,7 @@ router.get('/users', protect, authorize('admin'), async (req, res) => {
       query.isActive = isActive === 'true';
     }
 
-    const users = await User.find(query).sort({ createdAt: -1 });
+    const users = await User.find(query).sort({ createdAt: -1 }).lean();
 
     res.json({
       success: true,
@@ -198,7 +185,7 @@ router.get('/users', protect, authorize('admin'), async (req, res) => {
 });
 
 // Obtener un usuario específico (solo admin)
-router.get('/users/:id', protect, authorize('admin'), async (req, res) => {
+router.get('/users/:id', protect, authorize('admin'), mongoIdValidation, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
 
@@ -222,7 +209,7 @@ router.get('/users/:id', protect, authorize('admin'), async (req, res) => {
 });
 
 // Actualizar rol (solo admin)
-router.put('/users/:id/role', protect, authorize('admin'), async (req, res) => {
+router.put('/users/:id/role', protect, authorize('admin'), mongoIdValidation, updateRoleValidation, async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(
       req.params.id,
@@ -250,7 +237,7 @@ router.put('/users/:id/role', protect, authorize('admin'), async (req, res) => {
 });
 
 // Desactivar usuario (soft delete, solo admin)
-router.delete('/users/:id', protect, authorize('admin'), async (req, res) => {
+router.delete('/users/:id', protect, authorize('admin'), mongoIdValidation, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
 
@@ -286,7 +273,7 @@ router.delete('/users/:id', protect, authorize('admin'), async (req, res) => {
 });
 
 // Reactivar usuario (solo admin)
-router.patch('/users/:id/reactivate', protect, authorize('admin'), async (req, res) => {
+router.patch('/users/:id/reactivate', protect, authorize('admin'), mongoIdValidation, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
 

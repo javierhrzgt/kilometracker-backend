@@ -3,31 +3,49 @@ const router = express.Router();
 const Route = require('../models/Route');
 const Vehicle = require('../models/Vehicle');
 const { protect, authorize } = require('../middleware/auth');
+const {
+  createRouteValidation,
+  updateRouteValidation,
+  mongoIdValidation,
+  dateRangeQueryValidation,
+} = require('../middleware/validate');
+const { paginate, getPaginationData } = require('../utils/pagination');
 
 // Obtener todas las rutas
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, dateRangeQueryValidation, async (req, res) => {
   try {
-    const { vehicleAlias, startDate, endDate } = req.query;
+    const { vehicleAlias, startDate, endDate, page, limit } = req.query;
     let query = { owner: req.user.id };
-    
+
     if (vehicleAlias) {
       query.vehicleAlias = vehicleAlias.toUpperCase();
     }
-    
+
     if (startDate || endDate) {
       query.fecha = {};
       if (startDate) query.fecha.$gte = new Date(startDate);
       if (endDate) query.fecha.$lte = new Date(endDate);
     }
-    
-    const routes = await Route.find(query)
-      .populate('vehicle', 'alias marca modelo')
-      .sort({ fecha: -1 });
-    
+
+    // Get total count for pagination
+    const total = await Route.countDocuments(query);
+
+    // Apply pagination
+    const { query: paginatedQuery, page: currentPage, limit: currentLimit } = paginate(
+      Route.find(query)
+        .populate('vehicle', 'alias marca modelo')
+        .sort({ fecha: -1 }),
+      page,
+      limit
+    );
+
+    const routes = await paginatedQuery.lean();
+
     res.json({
       success: true,
       count: routes.length,
-      data: routes
+      data: routes,
+      pagination: getPaginationData(total, currentPage, currentLimit)
     });
   } catch (error) {
     res.status(500).json({
@@ -38,7 +56,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // Obtener una ruta por ID
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', protect, mongoIdValidation, async (req, res) => {
   try {
     const route = await Route.findOne({
       _id: req.params.id,
@@ -65,7 +83,7 @@ router.get('/:id', protect, async (req, res) => {
 });
 
 // Crear ruta
-router.post('/', protect, authorize('write', 'admin'), async (req, res) => {
+router.post('/', protect, authorize('write', 'admin'), createRouteValidation, async (req, res) => {
   try {
     const { vehicleAlias, distanciaRecorrida, fecha, notasAdicionales } = req.body;
     
@@ -109,7 +127,7 @@ router.post('/', protect, authorize('write', 'admin'), async (req, res) => {
 });
 
 // Actualizar ruta
-router.put('/:id', protect, authorize('write', 'admin'), async (req, res) => {
+router.put('/:id', protect, authorize('write', 'admin'), mongoIdValidation, updateRouteValidation, async (req, res) => {
   try {
     const route = await Route.findOne({
       _id: req.params.id,
@@ -179,7 +197,7 @@ router.put('/:id', protect, authorize('write', 'admin'), async (req, res) => {
 });
 
 // Eliminar ruta (permanent delete)
-router.delete('/:id', protect, authorize('write', 'admin'), async (req, res) => {
+router.delete('/:id', protect, authorize('write', 'admin'), mongoIdValidation, async (req, res) => {
   try {
     const route = await Route.findOne({
       _id: req.params.id,

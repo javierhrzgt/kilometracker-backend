@@ -4,6 +4,13 @@ const Vehicle = require('../models/Vehicle');
 const Route = require('../models/Route');
 const Refuel = require('../models/Refuel');
 const { protect, authorize } = require('../middleware/auth');
+const {
+  createVehicleValidation,
+  updateVehicleValidation,
+  aliasParamValidation,
+  dateRangeQueryValidation,
+} = require('../middleware/validate');
+const { paginate, getPaginationData } = require('../utils/pagination');
 
 // Obtener todos los vehículos
 router.get('/', protect, async (req, res) => {
@@ -11,22 +18,33 @@ router.get('/', protect, async (req, res) => {
     // Por defecto devuelve TODOS (activos e inactivos)
     // ?isActive=true -> solo activos
     // ?isActive=false -> solo inactivos
-    
-    const { isActive } = req.query;
+
+    const { isActive, page, limit } = req.query;
     let query = { owner: req.user.id };
-    
+
     // Solo filtrar si se especifica explícitamente el parámetro isActive
     if (isActive !== undefined) {
       query.isActive = isActive === 'true';
     }
     // Si no hay parámetro, devuelve todos (activos + inactivos)
-    
-    const vehicles = await Vehicle.find(query).sort({ createdAt: -1 });
-    
+
+    // Get total count for pagination
+    const total = await Vehicle.countDocuments(query);
+
+    // Apply pagination
+    const { query: paginatedQuery, page: currentPage, limit: currentLimit } = paginate(
+      Vehicle.find(query).sort({ createdAt: -1 }),
+      page,
+      limit
+    );
+
+    const vehicles = await paginatedQuery.lean();
+
     res.json({
       success: true,
       count: vehicles.length,
-      data: vehicles
+      data: vehicles,
+      pagination: getPaginationData(total, currentPage, currentLimit)
     });
   } catch (error) {
     res.status(500).json({
@@ -37,7 +55,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // Obtener un vehículo por alias (sin filtro de activo, para poder ver detalles)
-router.get('/:alias', protect, async (req, res) => {
+router.get('/:alias', protect, aliasParamValidation, async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),
@@ -65,7 +83,7 @@ router.get('/:alias', protect, async (req, res) => {
 });
 
 // Crear vehículo
-router.post('/', protect, authorize('write', 'admin'), async (req, res) => {
+router.post('/', protect, authorize('write', 'admin'), createVehicleValidation, async (req, res) => {
   try {
     const vehicleData = {
       ...req.body,
@@ -88,7 +106,7 @@ router.post('/', protect, authorize('write', 'admin'), async (req, res) => {
 });
 
 // Actualizar vehículo
-router.put('/:alias', protect, authorize('write', 'admin'), async (req, res) => {
+router.put('/:alias', protect, authorize('write', 'admin'), aliasParamValidation, updateVehicleValidation, async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),
@@ -122,7 +140,7 @@ router.put('/:alias', protect, authorize('write', 'admin'), async (req, res) => 
 });
 
 // Eliminar vehículo (soft delete)
-router.delete('/:alias', protect, authorize('write', 'admin'), async (req, res) => {
+router.delete('/:alias', protect, authorize('write', 'admin'), aliasParamValidation, async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),
@@ -153,7 +171,7 @@ router.delete('/:alias', protect, authorize('write', 'admin'), async (req, res) 
 });
 
 // Reactivar vehículo
-router.patch('/:alias/reactivate', protect, authorize('write', 'admin'), async (req, res) => {
+router.patch('/:alias/reactivate', protect, authorize('write', 'admin'), aliasParamValidation, async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),
@@ -184,7 +202,7 @@ router.patch('/:alias/reactivate', protect, authorize('write', 'admin'), async (
 });
 
 // Obtener eficiencia de combustible
-router.get('/:alias/fuel-efficiency', protect, async (req, res) => {
+router.get('/:alias/fuel-efficiency', protect, aliasParamValidation, dateRangeQueryValidation, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
@@ -255,7 +273,7 @@ router.get('/:alias/fuel-efficiency', protect, async (req, res) => {
 });
 
 // Obtener estadísticas completas del vehículo
-router.get('/:alias/stats', protect, async (req, res) => {
+router.get('/:alias/stats', protect, aliasParamValidation, async (req, res) => {
   try {
     const Maintenance = require('../models/Maintenance');
     const Expense = require('../models/Expense');
