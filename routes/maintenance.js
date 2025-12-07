@@ -44,43 +44,21 @@ router.get('/', protect, async (req, res) => {
 // Obtener mantenimientos próximos (que necesitan atención)
 router.get('/upcoming', protect, async (req, res) => {
   try {
-    const today = new Date();
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(today.getDate() + 30);
-
+    // Get all maintenance with a scheduled next service (by date or km)
     const maintenances = await Maintenance.find({
       owner: req.user.id,
       $or: [
-        {
-          proximoServicioFecha: {
-            $gte: today,
-            $lte: thirtyDaysFromNow
-          }
-        },
-        {
-          proximoServicioKm: { $ne: null }
-        }
+        { proximoServicioFecha: { $ne: null } },
+        { proximoServicioKm: { $ne: null } }
       ]
     })
     .populate('vehicle', 'alias marca modelo kilometrajeTotal')
     .sort({ proximoServicioFecha: 1 });
 
-    // Filtrar por kilometraje si aplica
-    const upcomingMaintenances = maintenances.filter(m => {
-      if (m.proximoServicioFecha && m.proximoServicioFecha <= thirtyDaysFromNow) {
-        return true;
-      }
-      if (m.proximoServicioKm && m.vehicle && m.vehicle.kilometrajeTotal) {
-        const kmRemaining = m.proximoServicioKm - m.vehicle.kilometrajeTotal;
-        return kmRemaining <= 500 && kmRemaining >= 0;
-      }
-      return false;
-    });
-
     res.json({
       success: true,
-      count: upcomingMaintenances.length,
-      data: upcomingMaintenances
+      count: maintenances.length,
+      data: maintenances
     });
   } catch (error) {
     res.status(500).json({
