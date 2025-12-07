@@ -7,8 +7,15 @@ require("dotenv").config();
 
 const app = express();
 
+// Logging
+const { logger } = require("./utils/logger");
+const { requestLogger, attachRequestContext } = require("./middleware/requestLogger");
+
 // Rate limiting
 const { apiLimiter, authLimiter } = require("./middleware/rateLimiter");
+
+// Trust proxy for proper IP detection behind reverse proxies
+app.set("trust proxy", 1);
 
 // Security headers
 app.use(helmet());
@@ -38,14 +45,18 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Request logging and tracing
+app.use(requestLogger);
+app.use(attachRequestContext);
+
 // Aplicar rate limiting general a todas las rutas
 app.use("/api/", apiLimiter);
 
 // Conexión a MongoDB
 mongoose
   .connect(process.env.MONGODB_URI)
-  .then(() => console.log("✅ MongoDB conectado"))
-  .catch((err) => console.error("❌ Error de conexión:", err));
+  .then(() => logger.info("MongoDB conectado"))
+  .catch((err) => logger.error("Error de conexión a MongoDB", { error: err.message }));
 
 // Rutas
 app.use("/api/auth", authLimiter, require("./routes/auth"));
@@ -57,12 +68,21 @@ app.use("/api/expenses", require("./routes/expenses"));
 
 // Middleware de manejo de errores
 app.use((err, req, res, next) => {
-  // Log error for debugging (only stack in development)
+  // Log error with request context
+  const errorDetails = {
+    requestId: req.requestId,
+    method: req.method,
+    url: req.originalUrl,
+    userId: req.user?.id,
+    errorName: err.name,
+    errorMessage: err.message
+  };
+
   if (process.env.NODE_ENV === "development") {
-    console.error(err.stack);
-  } else {
-    console.error(`${err.name}: ${err.message}`);
+    errorDetails.stack = err.stack;
   }
+
+  logger.error("Request error", errorDetails);
 
   // Handle specific error types
   let statusCode = err.statusCode || 500;
@@ -112,5 +132,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo`);
+  logger.info(`Servidor corriendo en puerto ${PORT}`, { port: PORT, env: process.env.NODE_ENV });
 });
+
+module.exports = app;

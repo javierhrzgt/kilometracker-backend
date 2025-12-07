@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const Expense = require('../models/Expense');
 const Vehicle = require('../models/Vehicle');
@@ -67,7 +68,7 @@ router.get('/', protect, dateRangeQueryValidation, async (req, res) => {
 router.get('/summary', protect, dateRangeQueryValidation, async (req, res) => {
   try {
     const { vehicleAlias, startDate, endDate } = req.query;
-    let matchQuery = { owner: req.user.id };
+    let matchQuery = { owner: new mongoose.Types.ObjectId(req.user.id) };
 
     if (vehicleAlias) {
       matchQuery.vehicleAlias = vehicleAlias.toUpperCase();

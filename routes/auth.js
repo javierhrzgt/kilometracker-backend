@@ -11,6 +11,7 @@ const {
   updateRoleValidation,
   mongoIdValidation,
 } = require('../middleware/validate');
+const { logAudit } = require('../utils/logger');
 
 // Generar JWT
 const generateToken = (id) => {
@@ -30,9 +31,17 @@ router.post('/register', registerValidation, async (req, res) => {
       password,
       role: role || 'read'
     });
-    
+
     const token = generateToken(user._id);
-    
+
+    logAudit('USER_REGISTERED', {
+      userId: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      requestId: req.requestId
+    });
+
     res.status(201).json({
       success: true,
       data: {
@@ -68,14 +77,25 @@ router.post('/login', loginValidation, async (req, res) => {
     }
     
     if (!user.isActive) {
+      logAudit('LOGIN_FAILED_INACTIVE', {
+        email,
+        userId: user._id,
+        requestId: req.requestId
+      });
       return res.status(401).json({
         success: false,
         error: 'Usuario inactivo'
       });
     }
-    
+
     const token = generateToken(user._id);
-    
+
+    logAudit('USER_LOGIN', {
+      userId: user._id,
+      email: user.email,
+      requestId: req.requestId
+    });
+
     res.json({
       success: true,
       data: {
@@ -147,6 +167,11 @@ router.put('/updatepassword', protect, updatePasswordValidation, async (req, res
     user.password = newPassword;
     await user.save();
 
+    logAudit('PASSWORD_CHANGED', {
+      userId: req.user.id,
+      requestId: req.requestId
+    });
+
     res.json({
       success: true,
       message: 'Contraseña actualizada correctamente'
@@ -211,6 +236,9 @@ router.get('/users/:id', protect, authorize('admin'), mongoIdValidation, async (
 // Actualizar rol (solo admin)
 router.put('/users/:id/role', protect, authorize('admin'), mongoIdValidation, updateRoleValidation, async (req, res) => {
   try {
+    const oldUser = await User.findById(req.params.id);
+    const oldRole = oldUser?.role;
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { role: req.body.role },
@@ -223,6 +251,15 @@ router.put('/users/:id/role', protect, authorize('admin'), mongoIdValidation, up
         error: 'Usuario no encontrado'
       });
     }
+
+    logAudit('ROLE_CHANGED', {
+      targetUserId: req.params.id,
+      targetEmail: user.email,
+      oldRole,
+      newRole: req.body.role,
+      changedBy: req.user.id,
+      requestId: req.requestId
+    });
 
     res.json({
       success: true,
@@ -259,6 +296,13 @@ router.delete('/users/:id', protect, authorize('admin'), mongoIdValidation, asyn
     user.isActive = false;
     await user.save();
 
+    logAudit('USER_DEACTIVATED', {
+      targetUserId: req.params.id,
+      targetEmail: user.email,
+      deactivatedBy: req.user.id,
+      requestId: req.requestId
+    });
+
     res.json({
       success: true,
       message: 'Usuario desactivado correctamente',
@@ -286,6 +330,13 @@ router.patch('/users/:id/reactivate', protect, authorize('admin'), mongoIdValida
 
     user.isActive = true;
     await user.save();
+
+    logAudit('USER_REACTIVATED', {
+      targetUserId: req.params.id,
+      targetEmail: user.email,
+      reactivatedBy: req.user.id,
+      requestId: req.requestId
+    });
 
     res.json({
       success: true,
