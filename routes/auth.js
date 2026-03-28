@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
+const { sendPasswordResetEmail } = require('../services/emailService');
 const {
   registerValidation,
   loginValidation,
@@ -181,6 +183,93 @@ router.put('/updatepassword', protect, updatePasswordValidation, async (req, res
       success: false,
       error: error.message
     });
+  }
+});
+
+// Solicitar recuperación de contraseña
+router.post('/forgotpassword', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'El email es requerido' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    // Siempre responder 200 para no revelar si el email existe
+    if (!user || !user.isActive) {
+      return res.json({
+        success: true,
+        message: 'Si el email está registrado, recibirás instrucciones para restablecer tu contraseña.'
+      });
+    }
+
+    // Generar token crudo y guardar el hash
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+    user.resetPasswordExpire = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+    await user.save({ validateBeforeSave: false });
+
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${rawToken}`;
+
+    try {
+      await sendPasswordResetEmail(user.email, user.username, resetUrl);
+    } catch (emailError) {
+      // Limpiar el token si el email falla
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save({ validateBeforeSave: false });
+      return res.status(500).json({ success: false, error: 'Error al enviar el email. Intenta de nuevo.' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Si el email está registrado, recibirás instrucciones para restablecer tu contraseña.'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Restablecer contraseña con token
+router.put('/resetpassword/:token', async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, error: 'La contraseña debe tener al menos 6 caracteres' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    }).select('+password');
+
+    if (!user) {
+      return res.status(400).json({ success: false, error: 'Token inválido o expirado' });
+    }
+
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    const token = generateToken(user._id);
+
+    logAudit('PASSWORD_RESET', { userId: user._id });
+
+    res.json({
+      success: true,
+      data: {
+        user: { id: user._id, username: user.username, email: user.email, role: user.role },
+        token,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
