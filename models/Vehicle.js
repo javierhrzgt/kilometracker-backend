@@ -49,6 +49,9 @@ const vehicleSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Índice compuesto para búsquedas frecuentes por alias + owner
+vehicleSchema.index({ alias: 1, owner: 1 });
+
 // Inicializar kilometraje total con el inicial
 vehicleSchema.pre('save', function(next) {
   if (this.isNew) {

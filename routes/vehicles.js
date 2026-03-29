@@ -13,6 +13,7 @@ const {
   dateRangeQueryValidation,
 } = require('../middleware/validate');
 const { paginate, getPaginationData } = require('../utils/pagination');
+const { calcEfficiencySummary, calcCostoPorKm } = require('../utils/fuelCalculations');
 
 // Obtener todos los vehículos
 router.get('/', protect, async (req, res) => {
@@ -234,13 +235,7 @@ router.get('/:alias/fuel-efficiency', protect, aliasParamValidation, dateRangeQu
     const refuels = await Refuel.find(refuelQuery).sort({ fecha: 1 });
     const routes = await Route.find(routeQuery).sort({ fecha: 1 });
 
-    const totalGalones = refuels.reduce((sum, refuel) => sum + (refuel.galones || 0), 0);
-    const totalDistancia = routes.reduce((sum, route) => sum + route.distanciaRecorrida, 0);
-    const totalGastoCombustible = refuels.reduce((sum, refuel) => sum + refuel.cantidadGastada, 0);
-
-    const kmPorLitro = totalGalones > 0 ? (totalDistancia / (totalGalones * 3.78541)).toFixed(2) : 0;
-    const kmPorGalon = totalGalones > 0 ? (totalDistancia / totalGalones).toFixed(2) : 0;
-    const costoPorKm = totalDistancia > 0 ? (totalGastoCombustible / totalDistancia).toFixed(2) : 0;
+    const efficiency = calcEfficiencySummary(routes, refuels);
 
     res.json({
       success: true,
@@ -250,14 +245,7 @@ router.get('/:alias/fuel-efficiency', protect, aliasParamValidation, dateRangeQu
           marca: vehicle.marca,
           modelo: vehicle.modelo
         },
-        efficiency: {
-          kmPorLitro: parseFloat(kmPorLitro),
-          kmPorGalon: parseFloat(kmPorGalon),
-          costoPorKm: parseFloat(costoPorKm),
-          totalDistancia,
-          totalGalones,
-          totalGastoCombustible
-        },
+        efficiency,
         period: {
           startDate: startDate || 'Inicio',
           endDate: endDate || 'Presente',
@@ -419,19 +407,15 @@ router.get('/:alias/stats', protect, aliasParamValidation, async (req, res) => {
 
     const totalRoutes = routes.length;
     const totalRefuels = refuels.length;
-    const totalDistancia = routes.reduce((sum, route) => sum + route.distanciaRecorrida, 0);
-    const totalGastoCombustible = refuels.reduce((sum, refuel) => sum + refuel.cantidadGastada, 0);
     const totalGastoMantenimiento = maintenances.reduce((sum, m) => sum + m.costo, 0);
     const totalGastosOtros = expenses.reduce((sum, e) => sum + e.monto, 0);
-    const totalGalones = refuels.reduce((sum, refuel) => sum + (refuel.galones || 0), 0);
 
-    // Cálculos de eficiencia
-    const kmPorLitro = totalGalones > 0 ? (totalDistancia / (totalGalones * 3.78541)).toFixed(2) : 0;
-    const kmPorGalon = totalGalones > 0 ? (totalDistancia / totalGalones).toFixed(2) : 0;
+    const eff = calcEfficiencySummary(routes, refuels);
+    const { totalDistancia, totalGalones, totalGastoCombustible, kmPorLitro, kmPorGalon } = eff;
 
     // Costo total de operación
     const costoTotal = totalGastoCombustible + totalGastoMantenimiento + totalGastosOtros;
-    const costoPorKm = totalDistancia > 0 ? (costoTotal / totalDistancia).toFixed(2) : 0;
+    const costoPorKm = calcCostoPorKm(costoTotal, totalDistancia);
 
     res.json({
       success: true,
