@@ -60,6 +60,7 @@ mongoose
 
 // Rutas
 app.use("/api/auth", authLimiter, require("./routes/auth"));
+app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/vehicles", require("./routes/vehicles"));
 app.use("/api/routes", require("./routes/routesVehicle"));
 app.use("/api/refuels", require("./routes/refuels"));
