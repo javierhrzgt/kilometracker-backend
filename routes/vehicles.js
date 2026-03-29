@@ -274,6 +274,127 @@ router.get('/:alias/fuel-efficiency', protect, aliasParamValidation, dateRangeQu
   }
 });
 
+// Obtener analíticas históricas del vehículo por mes
+// GET /api/vehicles/:alias/analytics?period=6m&groupBy=month
+router.get('/:alias/analytics', protect, aliasParamValidation, async (req, res) => {
+  try {
+    const vehicle = await Vehicle.findOne({
+      alias: req.params.alias.toUpperCase(),
+      owner: req.user.id,
+    });
+
+    if (!vehicle) {
+      return res.status(404).json({ success: false, error: 'Vehículo no encontrado' });
+    }
+
+    const period = req.query.period || '6m';
+    const months = period === '12m' ? 12 : period === '3m' ? 3 : 6;
+    const since = new Date();
+    since.setMonth(since.getMonth() - months);
+    since.setDate(1);
+    since.setHours(0, 0, 0, 0);
+
+    const vehicleId = vehicle._id;
+
+    const [routesByMonth, fuelByMonth, maintByMonth] = await Promise.all([
+      // Distancia por mes
+      require('../models/Route').aggregate([
+        { $match: { vehicle: vehicleId, fecha: { $gte: since } } },
+        {
+          $group: {
+            _id: { year: { $year: '$fecha' }, month: { $month: '$fecha' } },
+            distancia: { $sum: '$distanciaRecorrida' },
+          },
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } },
+      ]),
+      // Combustible por mes
+      require('../models/Refuel').aggregate([
+        { $match: { vehicle: vehicleId, fecha: { $gte: since } } },
+        {
+          $group: {
+            _id: { year: { $year: '$fecha' }, month: { $month: '$fecha' } },
+            costo: { $sum: '$cantidadGastada' },
+            galones: { $sum: '$galones' },
+          },
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } },
+      ]),
+      // Mantenimiento por mes
+      require('../models/Maintenance').aggregate([
+        { $match: { vehicle: vehicleId, fecha: { $gte: since } } },
+        {
+          $group: {
+            _id: { year: { $year: '$fecha' }, month: { $month: '$fecha' } },
+            costo: { $sum: '$costo' },
+          },
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } },
+      ]),
+    ]);
+
+    const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+    const formatPeriod = ({ year, month }) =>
+      `${year}-${String(month).padStart(2, '0')}`;
+
+    const formatLabel = ({ year, month }) =>
+      `${MONTH_NAMES[month - 1]} ${year}`;
+
+    // Construir mapa de distancias para calcular eficiencia
+    const distanciaMap = {};
+    routesByMonth.forEach((r) => {
+      distanciaMap[formatPeriod(r._id)] = r.distancia;
+    });
+
+    const distancia = routesByMonth.map((r) => ({
+      period: formatPeriod(r._id),
+      label: formatLabel(r._id),
+      value: parseFloat(r.distancia.toFixed(2)),
+    }));
+
+    const costoCombustible = fuelByMonth.map((r) => ({
+      period: formatPeriod(r._id),
+      label: formatLabel(r._id),
+      value: parseFloat(r.costo.toFixed(2)),
+    }));
+
+    const costoMantenimiento = maintByMonth.map((r) => ({
+      period: formatPeriod(r._id),
+      label: formatLabel(r._id),
+      value: parseFloat(r.costo.toFixed(2)),
+    }));
+
+    const eficiencia = fuelByMonth
+      .filter((r) => r.galones > 0)
+      .map((r) => {
+        const period = formatPeriod(r._id);
+        const km = distanciaMap[period] || 0;
+        const litros = r.galones * 3.78541;
+        const kmPorLitro = litros > 0 ? parseFloat((km / litros).toFixed(2)) : 0;
+        const costoPorKm =
+          km > 0 ? parseFloat((r.costo / km).toFixed(3)) : 0;
+        return {
+          period,
+          label: formatLabel(r._id),
+          kmPorLitro,
+          costoPorKm,
+        };
+      });
+
+    res.json({
+      success: true,
+      data: {
+        vehicle: { alias: vehicle.alias, marca: vehicle.marca, modelo: vehicle.modelo },
+        period: `${months}m`,
+        series: { distancia, costoCombustible, costoMantenimiento, eficiencia },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Obtener estadísticas completas del vehículo
 router.get('/:alias/stats', protect, aliasParamValidation, async (req, res) => {
   try {
