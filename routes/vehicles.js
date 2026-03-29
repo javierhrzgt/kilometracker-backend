@@ -3,6 +3,8 @@ const router = express.Router();
 const Vehicle = require('../models/Vehicle');
 const Route = require('../models/Route');
 const Refuel = require('../models/Refuel');
+const Maintenance = require('../models/Maintenance');
+const Expense = require('../models/Expense');
 const { protect, authorize } = require('../middleware/auth');
 const {
   createVehicleValidation,
@@ -275,9 +277,6 @@ router.get('/:alias/fuel-efficiency', protect, aliasParamValidation, dateRangeQu
 // Obtener estadísticas completas del vehículo
 router.get('/:alias/stats', protect, aliasParamValidation, async (req, res) => {
   try {
-    const Maintenance = require('../models/Maintenance');
-    const Expense = require('../models/Expense');
-
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),
       owner: req.user.id
@@ -290,10 +289,12 @@ router.get('/:alias/stats', protect, aliasParamValidation, async (req, res) => {
       });
     }
 
-    const routes = await Route.find({ vehicle: vehicle._id });
-    const refuels = await Refuel.find({ vehicle: vehicle._id });
-    const maintenances = await Maintenance.find({ vehicle: vehicle._id });
-    const expenses = await Expense.find({ vehicle: vehicle._id });
+    const [routes, refuels, maintenances, expenses] = await Promise.all([
+      Route.find({ vehicle: vehicle._id }),
+      Refuel.find({ vehicle: vehicle._id }),
+      Maintenance.find({ vehicle: vehicle._id }),
+      Expense.find({ vehicle: vehicle._id }),
+    ]);
 
     const totalRoutes = routes.length;
     const totalRefuels = refuels.length;
