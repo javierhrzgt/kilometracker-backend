@@ -9,17 +9,28 @@ const {
   updateRefuelValidation,
   mongoIdValidation,
   aliasParamValidation,
+  dateRangeQueryValidation,
 } = require('../middleware/validate');
 const { paginate, getPaginationData } = require('../utils/pagination');
 
 // Obtener todos los reabastecimientos
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, dateRangeQueryValidation, async (req, res) => {
   try {
-    const { vehicleAlias, page, limit } = req.query;
+    const { vehicleAlias, tipoCombustible, startDate, endDate, page, limit } = req.query;
     let query = { owner: req.user.id };
 
     if (vehicleAlias) {
       query.vehicleAlias = vehicleAlias.toUpperCase();
+    }
+
+    if (tipoCombustible) {
+      query.tipoCombustible = tipoCombustible;
+    }
+
+    if (startDate || endDate) {
+      query.fecha = {};
+      if (startDate) query.fecha.$gte = new Date(startDate);
+      if (endDate)   query.fecha.$lte = new Date(endDate);
     }
 
     // Get total count for pagination
@@ -34,7 +45,11 @@ router.get('/', protect, async (req, res) => {
       limit
     );
 
-    const refuels = await paginatedQuery.lean({ virtuals: true });
+    const rawRefuels = await paginatedQuery.lean();
+    const refuels = rawRefuels.map(r => ({
+      ...r,
+      precioPorGalon: r.galones ? (r.cantidadGastada / r.galones).toFixed(2) : null
+    }));
 
     res.json({
       success: true,

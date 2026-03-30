@@ -292,6 +292,11 @@ router.get('/users', protect, authorize('admin', 'root'), async (req, res) => {
       query.isActive = isActive === 'true';
     }
 
+    // Admins cannot see root users — only root sees everyone
+    if (req.user.role !== 'root') {
+      query.role = { $ne: 'root' };
+    }
+
     const users = await User.find(query).sort({ createdAt: -1 }).lean();
 
     res.json({
