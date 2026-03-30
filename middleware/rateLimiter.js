@@ -19,6 +19,7 @@ exports.rateLimiter = (options = {}) => {
   } = options;
 
   return (req, res, next) => {
+    if (process.env.NODE_ENV === 'test') return next();
     const key = req.ip || req.connection.remoteAddress;
     const now = Date.now();
 

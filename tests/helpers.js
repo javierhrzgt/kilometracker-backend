@@ -37,6 +37,13 @@ const createReadOnlyUser = async (overrides = {}) => {
 };
 
 /**
+ * Create a root user
+ */
+const createRootUser = async (overrides = {}) => {
+  return createTestUser({ role: 'root', ...overrides });
+};
+
+/**
  * Create a test vehicle
  */
 const createTestVehicle = async (ownerId, overrides = {}) => {
@@ -64,6 +71,7 @@ module.exports = {
   createTestUser,
   createAdminUser,
   createReadOnlyUser,
+  createRootUser,
   createTestVehicle,
   authHeader
 };

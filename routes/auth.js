@@ -3,8 +3,14 @@ const router = express.Router();
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Vehicle = require('../models/Vehicle');
+const Route = require('../models/Route');
+const Refuel = require('../models/Refuel');
+const Maintenance = require('../models/Maintenance');
+const Expense = require('../models/Expense');
 const { protect, authorize } = require('../middleware/auth');
 const { sendPasswordResetEmail } = require('../services/emailService');
+const { sendDeleteConfirmationEmail } = require('../utils/emailService');
 const {
   registerValidation,
   loginValidation,
@@ -14,6 +20,9 @@ const {
   mongoIdValidation,
 } = require('../middleware/validate');
 const { logAudit } = require('../utils/logger');
+
+// Pending hard-delete requests keyed by root user id
+const deleteRequests = new Map();
 
 // Generar JWT
 const generateToken = (id) => {
@@ -274,7 +283,7 @@ router.put('/resetpassword/:token', async (req, res) => {
 });
 
 // Obtener todos los usuarios (solo admin)
-router.get('/users', protect, authorize('admin'), async (req, res) => {
+router.get('/users', protect, authorize('admin', 'root'), async (req, res) => {
   try {
     const { isActive } = req.query;
     let query = {};
@@ -299,7 +308,7 @@ router.get('/users', protect, authorize('admin'), async (req, res) => {
 });
 
 // Obtener un usuario específico (solo admin)
-router.get('/users/:id', protect, authorize('admin'), mongoIdValidation, async (req, res) => {
+router.get('/users/:id', protect, authorize('admin', 'root'), mongoIdValidation, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
 
@@ -323,10 +332,18 @@ router.get('/users/:id', protect, authorize('admin'), mongoIdValidation, async (
 });
 
 // Actualizar rol (solo admin)
-router.put('/users/:id/role', protect, authorize('admin'), mongoIdValidation, updateRoleValidation, async (req, res) => {
+router.put('/users/:id/role', protect, authorize('admin', 'root'), mongoIdValidation, updateRoleValidation, async (req, res) => {
   try {
     const oldUser = await User.findById(req.params.id);
     const oldRole = oldUser?.role;
+
+    // Admin no puede modificar el rol de admin ni de root
+    if ((oldUser?.role === 'root' || oldUser?.role === 'admin') && req.user.role !== 'root') {
+      return res.status(403).json({
+        success: false,
+        error: 'No tienes permisos para modificar el rol de este usuario'
+      });
+    }
 
     const user = await User.findByIdAndUpdate(
       req.params.id,
@@ -363,7 +380,7 @@ router.put('/users/:id/role', protect, authorize('admin'), mongoIdValidation, up
 });
 
 // Desactivar usuario (soft delete, solo admin)
-router.delete('/users/:id', protect, authorize('admin'), mongoIdValidation, async (req, res) => {
+router.delete('/users/:id', protect, authorize('admin', 'root'), mongoIdValidation, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
 
@@ -379,6 +396,14 @@ router.delete('/users/:id', protect, authorize('admin'), mongoIdValidation, asyn
       return res.status(400).json({
         success: false,
         error: 'No puedes desactivar tu propia cuenta'
+      });
+    }
+
+    // Admin no puede desactivar a admin ni a root
+    if ((user.role === 'root' || user.role === 'admin') && req.user.role !== 'root') {
+      return res.status(403).json({
+        success: false,
+        error: 'No tienes permisos para desactivar este usuario'
       });
     }
 
@@ -405,8 +430,97 @@ router.delete('/users/:id', protect, authorize('admin'), mongoIdValidation, asyn
   }
 });
 
+// Solicitar código para eliminación permanente (solo root)
+router.post('/users/:id/permanent/request', protect, authorize('root'), mongoIdValidation, async (req, res) => {
+  try {
+    const target = await User.findById(req.params.id);
+
+    if (!target) {
+      return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+    }
+
+    if (target._id.toString() === req.user.id.toString()) {
+      return res.status(400).json({ success: false, error: 'No puedes eliminar tu propia cuenta' });
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    deleteRequests.set(req.user.id.toString(), {
+      code,
+      targetUserId: req.params.id,
+      expiresAt: Date.now() + 10 * 60 * 1000
+    });
+
+    await sendDeleteConfirmationEmail(req.user.email, req.user.username, target.username, code);
+
+    logAudit('PERMANENT_DELETE_REQUESTED', {
+      requestedBy: req.user.id,
+      targetUserId: req.params.id,
+      requestId: req.requestId
+    });
+
+    res.json({ success: true, message: 'Código de confirmación enviado a tu correo' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Eliminación permanente con cascade delete (solo root)
+router.delete('/users/:id/permanent', protect, authorize('root'), mongoIdValidation, async (req, res) => {
+  try {
+    const { code, confirmWord } = req.body;
+
+    if (confirmWord !== 'ELIMINAR') {
+      return res.status(400).json({ success: false, error: 'Palabra de confirmación incorrecta. Escribe ELIMINAR' });
+    }
+
+    const pending = deleteRequests.get(req.user.id.toString());
+    if (!pending) {
+      return res.status(400).json({ success: false, error: 'No hay una solicitud de eliminación activa. Inicia el proceso nuevamente.' });
+    }
+    if (Date.now() > pending.expiresAt) {
+      deleteRequests.delete(req.user.id.toString());
+      return res.status(400).json({ success: false, error: 'El código ha expirado. Inicia el proceso nuevamente.' });
+    }
+    if (pending.targetUserId !== req.params.id) {
+      return res.status(400).json({ success: false, error: 'El código no corresponde a este usuario.' });
+    }
+    if (pending.code !== code) {
+      return res.status(400).json({ success: false, error: 'Código incorrecto.' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      deleteRequests.delete(req.user.id.toString());
+      return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+    }
+
+    // Cascade delete
+    deleteRequests.delete(req.user.id.toString());
+    const vehicleIds = await Vehicle.find({ owner: req.params.id }).distinct('_id');
+    await Route.deleteMany({ vehicle: { $in: vehicleIds } });
+    await Refuel.deleteMany({ vehicle: { $in: vehicleIds } });
+    await Maintenance.deleteMany({ vehicle: { $in: vehicleIds } });
+    await Expense.deleteMany({ vehicle: { $in: vehicleIds } });
+    await Vehicle.deleteMany({ owner: req.params.id });
+    await User.deleteOne({ _id: req.params.id });
+
+    logAudit('USER_PERMANENTLY_DELETED', {
+      targetUserId: req.params.id,
+      targetEmail: user.email,
+      targetUsername: user.username,
+      targetRole: user.role,
+      deletedBy: req.user.id,
+      requestId: req.requestId
+    });
+
+    res.json({ success: true, message: `Usuario ${user.username} eliminado permanentemente` });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Reactivar usuario (solo admin)
-router.patch('/users/:id/reactivate', protect, authorize('admin'), mongoIdValidation, async (req, res) => {
+router.patch('/users/:id/reactivate', protect, authorize('admin', 'root'), mongoIdValidation, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
 
