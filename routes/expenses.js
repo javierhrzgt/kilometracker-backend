@@ -170,7 +170,7 @@ router.get('/:id', protect, mongoIdValidation, async (req, res) => {
 });
 
 // Crear gasto
-router.post('/', protect, authorize('write', 'admin'), createExpenseValidation, async (req, res) => {
+router.post('/', protect, authorize('write', 'admin', 'root'), createExpenseValidation, async (req, res) => {
   try {
     const {
       vehicleAlias,
@@ -226,7 +226,7 @@ router.post('/', protect, authorize('write', 'admin'), createExpenseValidation, 
 });
 
 // Actualizar gasto
-router.put('/:id', protect, authorize('write', 'admin'), mongoIdValidation, updateExpenseValidation, async (req, res) => {
+router.put('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidation, updateExpenseValidation, async (req, res) => {
   try {
     const expense = await Expense.findOne({
       _id: req.params.id,
@@ -293,7 +293,7 @@ router.put('/:id', protect, authorize('write', 'admin'), mongoIdValidation, upda
 });
 
 // Eliminar gasto (permanent delete)
-router.delete('/:id', protect, authorize('write', 'admin'), mongoIdValidation, async (req, res) => {
+router.delete('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidation, async (req, res) => {
   try {
     const expense = await Expense.findOne({
       _id: req.params.id,

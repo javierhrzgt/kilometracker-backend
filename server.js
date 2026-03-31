@@ -52,10 +52,40 @@ app.use(attachRequestContext);
 // Aplicar rate limiting general a todas las rutas
 app.use("/api/", apiLimiter);
 
+// Recalcular kilometrajeTotal de todos los vehículos desde las rutas reales.
+// Corrige datos corruptos por race conditions anteriores. Idempotente.
+async function migrateKilometraje() {
+  const Vehicle = require('./models/Vehicle');
+  const Route = require('./models/Route');
+  try {
+    const vehicles = await Vehicle.find({});
+    let fixed = 0;
+    for (const vehicle of vehicles) {
+      const result = await Route.aggregate([
+        { $match: { vehicle: vehicle._id } },
+        { $group: { _id: null, total: { $sum: '$distanciaRecorrida' } } }
+      ]);
+      const totalRoutes = result[0]?.total ?? 0;
+      const correctKm = vehicle.kilometrajeInicial + totalRoutes;
+      if (Math.abs(vehicle.kilometrajeTotal - correctKm) > 0.01) {
+        await Vehicle.findByIdAndUpdate(vehicle._id, { $set: { kilometrajeTotal: correctKm } });
+        logger.info(`[migrate] ${vehicle.alias}: ${vehicle.kilometrajeTotal} → ${correctKm}`);
+        fixed++;
+      }
+    }
+    if (fixed > 0) logger.info(`[migrate] Kilometraje corregido en ${fixed} vehículo(s)`);
+  } catch (err) {
+    logger.error('[migrate] Error en migrateKilometraje', { error: err.message });
+  }
+}
+
 // Conexión a MongoDB
 mongoose
   .connect(process.env.MONGODB_URI)
-  .then(() => logger.info("MongoDB conectado"))
+  .then(async () => {
+    logger.info("MongoDB conectado");
+    await migrateKilometraje();
+  })
   .catch((err) => logger.error("Error de conexión a MongoDB", { error: err.message }));
 
 // Rutas

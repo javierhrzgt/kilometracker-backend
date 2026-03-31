@@ -115,7 +115,7 @@ router.get('/:id', protect, mongoIdValidation, async (req, res) => {
 });
 
 // Crear mantenimiento
-router.post('/', protect, authorize('write', 'admin'), createMaintenanceValidation, async (req, res) => {
+router.post('/', protect, authorize('write', 'admin', 'root'), createMaintenanceValidation, async (req, res) => {
   try {
     const {
       vehicleAlias,
@@ -171,7 +171,7 @@ router.post('/', protect, authorize('write', 'admin'), createMaintenanceValidati
 });
 
 // Actualizar mantenimiento
-router.put('/:id', protect, authorize('write', 'admin'), mongoIdValidation, updateMaintenanceValidation, async (req, res) => {
+router.put('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidation, updateMaintenanceValidation, async (req, res) => {
   try {
     const maintenance = await Maintenance.findOne({
       _id: req.params.id,
@@ -238,7 +238,7 @@ router.put('/:id', protect, authorize('write', 'admin'), mongoIdValidation, upda
 });
 
 // Eliminar mantenimiento (permanent delete)
-router.delete('/:id', protect, authorize('write', 'admin'), mongoIdValidation, async (req, res) => {
+router.delete('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidation, async (req, res) => {
   try {
     const maintenance = await Maintenance.findOne({
       _id: req.params.id,

@@ -86,7 +86,7 @@ router.get('/:alias', protect, aliasParamValidation, async (req, res) => {
 });
 
 // Crear vehículo
-router.post('/', protect, authorize('write', 'admin'), createVehicleValidation, async (req, res) => {
+router.post('/', protect, authorize('write', 'admin', 'root'), createVehicleValidation, async (req, res) => {
   try {
     const vehicleData = {
       ...req.body,
@@ -109,7 +109,7 @@ router.post('/', protect, authorize('write', 'admin'), createVehicleValidation, 
 });
 
 // Actualizar vehículo
-router.put('/:alias', protect, authorize('write', 'admin'), aliasParamValidation, updateVehicleValidation, async (req, res) => {
+router.put('/:alias', protect, authorize('write', 'admin', 'root'), aliasParamValidation, updateVehicleValidation, async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),
@@ -143,7 +143,7 @@ router.put('/:alias', protect, authorize('write', 'admin'), aliasParamValidation
 });
 
 // Eliminar vehículo (soft delete)
-router.delete('/:alias', protect, authorize('write', 'admin'), aliasParamValidation, async (req, res) => {
+router.delete('/:alias', protect, authorize('write', 'admin', 'root'), aliasParamValidation, async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),
@@ -174,7 +174,7 @@ router.delete('/:alias', protect, authorize('write', 'admin'), aliasParamValidat
 });
 
 // Reactivar vehículo
-router.patch('/:alias/reactivate', protect, authorize('write', 'admin'), aliasParamValidation, async (req, res) => {
+router.patch('/:alias/reactivate', protect, authorize('write', 'admin', 'root'), aliasParamValidation, async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),

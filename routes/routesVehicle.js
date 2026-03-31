@@ -83,7 +83,7 @@ router.get('/:id', protect, mongoIdValidation, async (req, res) => {
 });
 
 // Crear ruta
-router.post('/', protect, authorize('write', 'admin'), createRouteValidation, async (req, res) => {
+router.post('/', protect, authorize('write', 'admin', 'root'), createRouteValidation, async (req, res) => {
   try {
     const { vehicleAlias, distanciaRecorrida, fecha, notasAdicionales } = req.body;
     
@@ -109,14 +109,12 @@ router.post('/', protect, authorize('write', 'admin'), createRouteValidation, as
       owner: req.user.id
     });
     
-    // Actualizar kilometraje del vehículo
-    vehicle.kilometrajeTotal += distanciaRecorrida;
-    await vehicle.save();
-    
+    // Actualizar kilometraje del vehículo (atomic increment)
+    await Vehicle.findByIdAndUpdate(vehicle._id, { $inc: { kilometrajeTotal: distanciaRecorrida } });
+
     res.status(201).json({
       success: true,
       data: route,
-      vehicleKilometraje: vehicle.kilometrajeTotal
     });
   } catch (error) {
     res.status(400).json({
@@ -127,7 +125,7 @@ router.post('/', protect, authorize('write', 'admin'), createRouteValidation, as
 });
 
 // Actualizar ruta
-router.put('/:id', protect, authorize('write', 'admin'), mongoIdValidation, updateRouteValidation, async (req, res) => {
+router.put('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidation, updateRouteValidation, async (req, res) => {
   try {
     const route = await Route.findOne({
       _id: req.params.id,
@@ -159,22 +157,17 @@ router.put('/:id', protect, authorize('write', 'admin'), mongoIdValidation, upda
         });
       }
       
-      // Restar del vehículo anterior
-      oldVehicle.kilometrajeTotal -= oldDistance;
-      await oldVehicle.save();
-      
-      // Sumar al nuevo vehículo
+      // Restar del vehículo anterior y sumar al nuevo (atomic)
       const newDistance = req.body.distanciaRecorrida || oldDistance;
-      newVehicle.kilometrajeTotal += newDistance;
-      await newVehicle.save();
+      await Vehicle.findByIdAndUpdate(oldVehicle._id, { $inc: { kilometrajeTotal: -oldDistance } });
+      await Vehicle.findByIdAndUpdate(newVehicle._id, { $inc: { kilometrajeTotal: newDistance } });
       
       route.vehicle = newVehicle._id;
       route.vehicleAlias = newVehicle.alias;
     } else if (req.body.distanciaRecorrida && req.body.distanciaRecorrida !== oldDistance) {
-      // Si solo cambió la distancia
+      // Si solo cambió la distancia (atomic)
       const difference = req.body.distanciaRecorrida - oldDistance;
-      oldVehicle.kilometrajeTotal += difference;
-      await oldVehicle.save();
+      await Vehicle.findByIdAndUpdate(oldVehicle._id, { $inc: { kilometrajeTotal: difference } });
     }
     
     // Actualizar otros campos
@@ -197,7 +190,7 @@ router.put('/:id', protect, authorize('write', 'admin'), mongoIdValidation, upda
 });
 
 // Eliminar ruta (permanent delete)
-router.delete('/:id', protect, authorize('write', 'admin'), mongoIdValidation, async (req, res) => {
+router.delete('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidation, async (req, res) => {
   try {
     const route = await Route.findOne({
       _id: req.params.id,
@@ -214,9 +207,8 @@ router.delete('/:id', protect, authorize('write', 'admin'), mongoIdValidation, a
     const vehicle = await Vehicle.findById(route.vehicle);
 
     if (vehicle) {
-      // Restar la distancia del kilometraje total
-      vehicle.kilometrajeTotal -= route.distanciaRecorrida;
-      await vehicle.save();
+      // Restar la distancia del kilometraje total (atomic)
+      await Vehicle.findByIdAndUpdate(vehicle._id, { $inc: { kilometrajeTotal: -route.distanciaRecorrida } });
     }
 
     await Route.deleteOne({ _id: req.params.id });
@@ -224,7 +216,6 @@ router.delete('/:id', protect, authorize('write', 'admin'), mongoIdValidation, a
     res.json({
       success: true,
       message: 'Ruta eliminada correctamente',
-      vehicleKilometraje: vehicle ? vehicle.kilometrajeTotal : null
     });
   } catch (error) {
     res.status(500).json({
