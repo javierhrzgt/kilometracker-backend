@@ -7,10 +7,9 @@ const Refuel = require('../models/Refuel');
 const Maintenance = require('../models/Maintenance');
 const Expense = require('../models/Expense');
 const { protect } = require('../middleware/auth');
-const { apiLimiter } = require('../middleware/rateLimiter');
 
 // GET /api/dashboard — Resumen global del usuario
-router.get('/', protect, apiLimiter, async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
     const userId = new mongoose.Types.ObjectId(req.user.id);
     const now = new Date();

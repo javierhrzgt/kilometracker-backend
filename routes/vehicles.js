@@ -6,7 +6,6 @@ const Refuel = require('../models/Refuel');
 const Maintenance = require('../models/Maintenance');
 const Expense = require('../models/Expense');
 const { protect, authorize } = require('../middleware/auth');
-const { apiLimiter } = require('../middleware/rateLimiter');
 const {
   createVehicleValidation,
   updateVehicleValidation,
@@ -17,7 +16,7 @@ const { paginate, getPaginationData } = require('../utils/pagination');
 const { calcEfficiencySummary, calcCostoPorKm } = require('../utils/fuelCalculations');
 
 // Obtener todos los vehículos
-router.get('/', protect, apiLimiter, async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
     // Por defecto devuelve TODOS (activos e inactivos)
     // ?isActive=true -> solo activos
@@ -59,7 +58,7 @@ router.get('/', protect, apiLimiter, async (req, res) => {
 });
 
 // Obtener un vehículo por alias (sin filtro de activo, para poder ver detalles)
-router.get('/:alias', protect, apiLimiter, aliasParamValidation, async (req, res) => {
+router.get('/:alias', protect, aliasParamValidation, async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),
@@ -87,7 +86,7 @@ router.get('/:alias', protect, apiLimiter, aliasParamValidation, async (req, res
 });
 
 // Crear vehículo
-router.post('/', protect, authorize('write', 'admin', 'root'), apiLimiter, createVehicleValidation, async (req, res) => {
+router.post('/', protect, authorize('write', 'admin', 'root'), createVehicleValidation, async (req, res) => {
   try {
     const vehicleData = {
       ...req.body,
@@ -110,7 +109,7 @@ router.post('/', protect, authorize('write', 'admin', 'root'), apiLimiter, creat
 });
 
 // Actualizar vehículo
-router.put('/:alias', protect, authorize('write', 'admin', 'root'), apiLimiter, aliasParamValidation, updateVehicleValidation, async (req, res) => {
+router.put('/:alias', protect, authorize('write', 'admin', 'root'), aliasParamValidation, updateVehicleValidation, async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),
@@ -144,7 +143,7 @@ router.put('/:alias', protect, authorize('write', 'admin', 'root'), apiLimiter, 
 });
 
 // Eliminar vehículo (soft delete)
-router.delete('/:alias', protect, authorize('write', 'admin', 'root'), apiLimiter, aliasParamValidation, async (req, res) => {
+router.delete('/:alias', protect, authorize('write', 'admin', 'root'), aliasParamValidation, async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),
@@ -175,7 +174,7 @@ router.delete('/:alias', protect, authorize('write', 'admin', 'root'), apiLimite
 });
 
 // Reactivar vehículo
-router.patch('/:alias/reactivate', protect, authorize('write', 'admin', 'root'), apiLimiter, aliasParamValidation, async (req, res) => {
+router.patch('/:alias/reactivate', protect, authorize('write', 'admin', 'root'), aliasParamValidation, async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),
@@ -206,7 +205,7 @@ router.patch('/:alias/reactivate', protect, authorize('write', 'admin', 'root'),
 });
 
 // Obtener eficiencia de combustible
-router.get('/:alias/fuel-efficiency', protect, apiLimiter, aliasParamValidation, dateRangeQueryValidation, async (req, res) => {
+router.get('/:alias/fuel-efficiency', protect, aliasParamValidation, dateRangeQueryValidation, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
@@ -265,7 +264,7 @@ router.get('/:alias/fuel-efficiency', protect, apiLimiter, aliasParamValidation,
 
 // Obtener analíticas históricas del vehículo por mes
 // GET /api/vehicles/:alias/analytics?period=6m&groupBy=month
-router.get('/:alias/analytics', protect, apiLimiter, aliasParamValidation, async (req, res) => {
+router.get('/:alias/analytics', protect, aliasParamValidation, async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),
@@ -385,7 +384,7 @@ router.get('/:alias/analytics', protect, apiLimiter, aliasParamValidation, async
 });
 
 // Obtener estadísticas completas del vehículo
-router.get('/:alias/stats', protect, apiLimiter, aliasParamValidation, async (req, res) => {
+router.get('/:alias/stats', protect, aliasParamValidation, async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),
