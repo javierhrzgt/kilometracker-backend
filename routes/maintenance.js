@@ -3,6 +3,7 @@ const router = express.Router();
 const Maintenance = require('../models/Maintenance');
 const Vehicle = require('../models/Vehicle');
 const { protect, authorize } = require('../middleware/auth');
+const { apiLimiter } = require('../middleware/rateLimiter');
 const {
   createMaintenanceValidation,
   updateMaintenanceValidation,
@@ -12,7 +13,7 @@ const {
 const { paginate, getPaginationData } = require('../utils/pagination');
 
 // Obtener todos los mantenimientos
-router.get('/', protect, dateRangeQueryValidation, async (req, res) => {
+router.get('/', protect, apiLimiter, dateRangeQueryValidation, async (req, res) => {
   try {
     const { vehicleAlias, tipo, startDate, endDate, page, limit } = req.query;
     let query = { owner: req.user.id };
@@ -60,7 +61,7 @@ router.get('/', protect, dateRangeQueryValidation, async (req, res) => {
 });
 
 // Obtener mantenimientos próximos (que necesitan atención)
-router.get('/upcoming', protect, async (req, res) => {
+router.get('/upcoming', protect, apiLimiter, async (req, res) => {
   try {
     // Get all maintenance with a scheduled next service (by date or km)
     const maintenances = await Maintenance.find({
@@ -88,7 +89,7 @@ router.get('/upcoming', protect, async (req, res) => {
 });
 
 // Obtener un mantenimiento por ID
-router.get('/:id', protect, mongoIdValidation, async (req, res) => {
+router.get('/:id', protect, apiLimiter, mongoIdValidation, async (req, res) => {
   try {
     const maintenance = await Maintenance.findOne({
       _id: req.params.id,
@@ -115,7 +116,7 @@ router.get('/:id', protect, mongoIdValidation, async (req, res) => {
 });
 
 // Crear mantenimiento
-router.post('/', protect, authorize('write', 'admin', 'root'), createMaintenanceValidation, async (req, res) => {
+router.post('/', protect, authorize('write', 'admin', 'root'), apiLimiter, createMaintenanceValidation, async (req, res) => {
   try {
     const {
       vehicleAlias,
@@ -171,7 +172,7 @@ router.post('/', protect, authorize('write', 'admin', 'root'), createMaintenance
 });
 
 // Actualizar mantenimiento
-router.put('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidation, updateMaintenanceValidation, async (req, res) => {
+router.put('/:id', protect, authorize('write', 'admin', 'root'), apiLimiter, mongoIdValidation, updateMaintenanceValidation, async (req, res) => {
   try {
     const maintenance = await Maintenance.findOne({
       _id: req.params.id,
@@ -238,7 +239,7 @@ router.put('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidati
 });
 
 // Eliminar mantenimiento (permanent delete)
-router.delete('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidation, async (req, res) => {
+router.delete('/:id', protect, authorize('write', 'admin', 'root'), apiLimiter, mongoIdValidation, async (req, res) => {
   try {
     const maintenance = await Maintenance.findOne({
       _id: req.params.id,

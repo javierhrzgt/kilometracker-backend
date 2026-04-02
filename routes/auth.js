@@ -11,7 +11,7 @@ const Expense = require('../models/Expense');
 const { protect, authorize } = require('../middleware/auth');
 const { sendPasswordResetEmail } = require('../services/emailService');
 const { sendDeleteConfirmationEmail } = require('../utils/emailService');
-const { loginLimiter, registerLimiter, passwordResetLimiter } = require('../middleware/rateLimiter');
+const { loginLimiter, registerLimiter, passwordResetLimiter, apiLimiter } = require('../middleware/rateLimiter');
 const {
   registerValidation,
   loginValidation,
@@ -129,7 +129,7 @@ router.post('/login', loginLimiter, loginValidation, async (req, res) => {
 });
 
 // Obtener perfil actual
-router.get('/me', protect, async (req, res) => {
+router.get('/me', protect, apiLimiter, async (req, res) => {
   res.json({
     success: true,
     data: req.user
@@ -137,7 +137,7 @@ router.get('/me', protect, async (req, res) => {
 });
 
 // Actualizar perfil
-router.put('/updateprofile', protect, updateProfileValidation, async (req, res) => {
+router.put('/updateprofile', protect, apiLimiter, updateProfileValidation, async (req, res) => {
   try {
     const fieldsToUpdate = {
       username: req.body.username,
@@ -162,7 +162,7 @@ router.put('/updateprofile', protect, updateProfileValidation, async (req, res) 
 });
 
 // Actualizar contraseña
-router.put('/updatepassword', protect, updatePasswordValidation, async (req, res) => {
+router.put('/updatepassword', protect, apiLimiter, updatePasswordValidation, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
@@ -284,7 +284,7 @@ router.put('/resetpassword/:token', passwordResetLimiter, async (req, res) => {
 });
 
 // Obtener todos los usuarios (solo admin)
-router.get('/users', protect, authorize('admin', 'root'), async (req, res) => {
+router.get('/users', protect, authorize('admin', 'root'), apiLimiter, async (req, res) => {
   try {
     const { isActive } = req.query;
     let query = {};
@@ -314,7 +314,7 @@ router.get('/users', protect, authorize('admin', 'root'), async (req, res) => {
 });
 
 // Obtener un usuario específico (solo admin)
-router.get('/users/:id', protect, authorize('admin', 'root'), mongoIdValidation, async (req, res) => {
+router.get('/users/:id', protect, authorize('admin', 'root'), apiLimiter, mongoIdValidation, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
 
@@ -338,7 +338,7 @@ router.get('/users/:id', protect, authorize('admin', 'root'), mongoIdValidation,
 });
 
 // Actualizar rol (solo admin)
-router.put('/users/:id/role', protect, authorize('admin', 'root'), mongoIdValidation, updateRoleValidation, async (req, res) => {
+router.put('/users/:id/role', protect, authorize('admin', 'root'), apiLimiter, mongoIdValidation, updateRoleValidation, async (req, res) => {
   try {
     const oldUser = await User.findById(req.params.id);
     const oldRole = oldUser?.role;
@@ -386,7 +386,7 @@ router.put('/users/:id/role', protect, authorize('admin', 'root'), mongoIdValida
 });
 
 // Desactivar usuario (soft delete, solo admin)
-router.delete('/users/:id', protect, authorize('admin', 'root'), mongoIdValidation, async (req, res) => {
+router.delete('/users/:id', protect, authorize('admin', 'root'), apiLimiter, mongoIdValidation, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
 
@@ -437,7 +437,7 @@ router.delete('/users/:id', protect, authorize('admin', 'root'), mongoIdValidati
 });
 
 // Solicitar código para eliminación permanente (solo root)
-router.post('/users/:id/permanent/request', protect, authorize('root'), mongoIdValidation, async (req, res) => {
+router.post('/users/:id/permanent/request', protect, authorize('root'), apiLimiter, mongoIdValidation, async (req, res) => {
   try {
     const target = await User.findById(req.params.id);
 
@@ -471,7 +471,7 @@ router.post('/users/:id/permanent/request', protect, authorize('root'), mongoIdV
 });
 
 // Eliminación permanente con cascade delete (solo root)
-router.delete('/users/:id/permanent', protect, authorize('root'), mongoIdValidation, async (req, res) => {
+router.delete('/users/:id/permanent', protect, authorize('root'), apiLimiter, mongoIdValidation, async (req, res) => {
   try {
     const { code, confirmWord } = req.body;
 
@@ -526,7 +526,7 @@ router.delete('/users/:id/permanent', protect, authorize('root'), mongoIdValidat
 });
 
 // Reactivar usuario (solo admin)
-router.patch('/users/:id/reactivate', protect, authorize('admin', 'root'), mongoIdValidation, async (req, res) => {
+router.patch('/users/:id/reactivate', protect, authorize('admin', 'root'), apiLimiter, mongoIdValidation, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
 
