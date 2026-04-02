@@ -12,7 +12,7 @@ const { logger } = require("./utils/logger");
 const { requestLogger, attachRequestContext } = require("./middleware/requestLogger");
 
 // Rate limiting
-const { apiLimiter, authLimiter } = require("./middleware/rateLimiter");
+const { apiLimiter } = require("./middleware/rateLimiter");
 
 // Trust proxy for proper IP detection behind reverse proxies
 app.set("trust proxy", 1);
@@ -89,7 +89,7 @@ mongoose
   .catch((err) => logger.error("Error de conexión a MongoDB", { error: err.message }));
 
 // Rutas
-app.use("/api/auth", authLimiter, require("./routes/auth"));
+app.use("/api/auth", require("./routes/auth"));
 app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/vehicles", require("./routes/vehicles"));
 app.use("/api/routes", require("./routes/routesVehicle"));
