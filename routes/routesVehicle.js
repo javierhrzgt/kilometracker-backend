@@ -3,7 +3,6 @@ const router = express.Router();
 const Route = require('../models/Route');
 const Vehicle = require('../models/Vehicle');
 const { protect, authorize } = require('../middleware/auth');
-const { apiLimiter } = require('../middleware/rateLimiter');
 const {
   createRouteValidation,
   updateRouteValidation,
@@ -13,7 +12,7 @@ const {
 const { paginate, getPaginationData } = require('../utils/pagination');
 
 // Obtener todas las rutas
-router.get('/', protect, apiLimiter, dateRangeQueryValidation, async (req, res) => {
+router.get('/', protect, dateRangeQueryValidation, async (req, res) => {
   try {
     const { vehicleAlias, startDate, endDate, page, limit } = req.query;
     let query = { owner: req.user.id };
@@ -57,7 +56,7 @@ router.get('/', protect, apiLimiter, dateRangeQueryValidation, async (req, res) 
 });
 
 // Obtener una ruta por ID
-router.get('/:id', protect, apiLimiter, mongoIdValidation, async (req, res) => {
+router.get('/:id', protect, mongoIdValidation, async (req, res) => {
   try {
     const route = await Route.findOne({
       _id: req.params.id,
@@ -84,7 +83,7 @@ router.get('/:id', protect, apiLimiter, mongoIdValidation, async (req, res) => {
 });
 
 // Crear ruta
-router.post('/', protect, authorize('write', 'admin', 'root'), apiLimiter, createRouteValidation, async (req, res) => {
+router.post('/', protect, authorize('write', 'admin', 'root'), createRouteValidation, async (req, res) => {
   try {
     const { vehicleAlias, distanciaRecorrida, fecha, notasAdicionales } = req.body;
     
@@ -126,7 +125,7 @@ router.post('/', protect, authorize('write', 'admin', 'root'), apiLimiter, creat
 });
 
 // Actualizar ruta
-router.put('/:id', protect, authorize('write', 'admin', 'root'), apiLimiter, mongoIdValidation, updateRouteValidation, async (req, res) => {
+router.put('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidation, updateRouteValidation, async (req, res) => {
   try {
     const route = await Route.findOne({
       _id: req.params.id,
@@ -191,7 +190,7 @@ router.put('/:id', protect, authorize('write', 'admin', 'root'), apiLimiter, mon
 });
 
 // Eliminar ruta (permanent delete)
-router.delete('/:id', protect, authorize('write', 'admin', 'root'), apiLimiter, mongoIdValidation, async (req, res) => {
+router.delete('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidation, async (req, res) => {
   try {
     const route = await Route.findOne({
       _id: req.params.id,

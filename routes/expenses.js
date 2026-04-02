@@ -4,7 +4,6 @@ const router = express.Router();
 const Expense = require('../models/Expense');
 const Vehicle = require('../models/Vehicle');
 const { protect, authorize } = require('../middleware/auth');
-const { apiLimiter } = require('../middleware/rateLimiter');
 const {
   createExpenseValidation,
   updateExpenseValidation,
@@ -14,7 +13,7 @@ const {
 const { paginate, getPaginationData } = require('../utils/pagination');
 
 // Obtener todos los gastos
-router.get('/', protect, apiLimiter, dateRangeQueryValidation, async (req, res) => {
+router.get('/', protect, dateRangeQueryValidation, async (req, res) => {
   try {
     const { vehicleAlias, categoria, startDate, endDate, esDeducibleImpuestos, page, limit } = req.query;
     let query = { owner: req.user.id };
@@ -66,7 +65,7 @@ router.get('/', protect, apiLimiter, dateRangeQueryValidation, async (req, res) 
 });
 
 // Obtener resumen de gastos por categoría
-router.get('/summary', protect, apiLimiter, dateRangeQueryValidation, async (req, res) => {
+router.get('/summary', protect, dateRangeQueryValidation, async (req, res) => {
   try {
     const { vehicleAlias, startDate, endDate } = req.query;
     let matchQuery = { owner: new mongoose.Types.ObjectId(req.user.id) };
@@ -112,7 +111,7 @@ router.get('/summary', protect, apiLimiter, dateRangeQueryValidation, async (req
 });
 
 // Obtener gastos recurrentes próximos
-router.get('/upcoming', protect, apiLimiter, async (req, res) => {
+router.get('/upcoming', protect, async (req, res) => {
   try {
     const today = new Date();
     const thirtyDaysFromNow = new Date();
@@ -144,7 +143,7 @@ router.get('/upcoming', protect, apiLimiter, async (req, res) => {
 });
 
 // Obtener un gasto por ID
-router.get('/:id', protect, apiLimiter, mongoIdValidation, async (req, res) => {
+router.get('/:id', protect, mongoIdValidation, async (req, res) => {
   try {
     const expense = await Expense.findOne({
       _id: req.params.id,
@@ -171,7 +170,7 @@ router.get('/:id', protect, apiLimiter, mongoIdValidation, async (req, res) => {
 });
 
 // Crear gasto
-router.post('/', protect, authorize('write', 'admin', 'root'), apiLimiter, createExpenseValidation, async (req, res) => {
+router.post('/', protect, authorize('write', 'admin', 'root'), createExpenseValidation, async (req, res) => {
   try {
     const {
       vehicleAlias,
@@ -227,7 +226,7 @@ router.post('/', protect, authorize('write', 'admin', 'root'), apiLimiter, creat
 });
 
 // Actualizar gasto
-router.put('/:id', protect, authorize('write', 'admin', 'root'), apiLimiter, mongoIdValidation, updateExpenseValidation, async (req, res) => {
+router.put('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidation, updateExpenseValidation, async (req, res) => {
   try {
     const expense = await Expense.findOne({
       _id: req.params.id,
@@ -294,7 +293,7 @@ router.put('/:id', protect, authorize('write', 'admin', 'root'), apiLimiter, mon
 });
 
 // Eliminar gasto (permanent delete)
-router.delete('/:id', protect, authorize('write', 'admin', 'root'), apiLimiter, mongoIdValidation, async (req, res) => {
+router.delete('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidation, async (req, res) => {
   try {
     const expense = await Expense.findOne({
       _id: req.params.id,

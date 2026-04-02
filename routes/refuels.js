@@ -4,7 +4,6 @@ const router = express.Router();
 const Refuel = require('../models/Refuel');
 const Vehicle = require('../models/Vehicle');
 const { protect, authorize } = require('../middleware/auth');
-const { apiLimiter } = require('../middleware/rateLimiter');
 const {
   createRefuelValidation,
   updateRefuelValidation,
@@ -15,7 +14,7 @@ const {
 const { paginate, getPaginationData } = require('../utils/pagination');
 
 // Obtener todos los reabastecimientos
-router.get('/', protect, apiLimiter, dateRangeQueryValidation, async (req, res) => {
+router.get('/', protect, dateRangeQueryValidation, async (req, res) => {
   try {
     const { vehicleAlias, tipoCombustible, startDate, endDate, page, limit } = req.query;
     let query = { owner: req.user.id };
@@ -67,7 +66,7 @@ router.get('/', protect, apiLimiter, dateRangeQueryValidation, async (req, res) 
 });
 
 // Obtener un reabastecimiento por ID
-router.get('/:id', protect, apiLimiter, mongoIdValidation, async (req, res) => {
+router.get('/:id', protect, mongoIdValidation, async (req, res) => {
   try {
     const refuel = await Refuel.findOne({
       _id: req.params.id,
@@ -94,7 +93,7 @@ router.get('/:id', protect, apiLimiter, mongoIdValidation, async (req, res) => {
 });
 
 // Crear reabastecimiento
-router.post('/', protect, authorize('write', 'admin', 'root'), apiLimiter, createRefuelValidation, async (req, res) => {
+router.post('/', protect, authorize('write', 'admin', 'root'), createRefuelValidation, async (req, res) => {
   try {
     const { vehicleAlias, tipoCombustible, cantidadGastada, galones, fecha } = req.body;
     
@@ -134,7 +133,7 @@ router.post('/', protect, authorize('write', 'admin', 'root'), apiLimiter, creat
 });
 
 // Actualizar reabastecimiento
-router.put('/:id', protect, authorize('write', 'admin', 'root'), apiLimiter, mongoIdValidation, updateRefuelValidation, async (req, res) => {
+router.put('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidation, updateRefuelValidation, async (req, res) => {
   try {
     const refuel = await Refuel.findOne({
       _id: req.params.id,
@@ -188,7 +187,7 @@ router.put('/:id', protect, authorize('write', 'admin', 'root'), apiLimiter, mon
 });
 
 // Eliminar reabastecimiento (permanent delete)
-router.delete('/:id', protect, authorize('write', 'admin', 'root'), apiLimiter, mongoIdValidation, async (req, res) => {
+router.delete('/:id', protect, authorize('write', 'admin', 'root'), mongoIdValidation, async (req, res) => {
   try {
     const refuel = await Refuel.findOne({
       _id: req.params.id,
@@ -217,7 +216,7 @@ router.delete('/:id', protect, authorize('write', 'admin', 'root'), apiLimiter, 
 });
 
 // Obtener análisis de consumo de combustible
-router.get('/vehicle/:alias/analysis', protect, apiLimiter, aliasParamValidation, async (req, res) => {
+router.get('/vehicle/:alias/analysis', protect, aliasParamValidation, async (req, res) => {
   try {
     const vehicle = await Vehicle.findOne({
       alias: req.params.alias.toUpperCase(),
