@@ -52,12 +52,11 @@ const vehicleSchema = new mongoose.Schema({
 // Índice compuesto para búsquedas frecuentes por alias + owner
 vehicleSchema.index({ alias: 1, owner: 1 });
 
-// Inicializar kilometraje total con el inicial
-vehicleSchema.pre('save', function(next) {
+// Inicializar kilometraje total con el inicial (Mongoose 9.x - sin next())
+vehicleSchema.pre('save', function() {
   if (this.isNew) {
     this.kilometrajeTotal = this.kilometrajeInicial;
   }
-  next();
 });
 
 module.exports = mongoose.model('Vehicle', vehicleSchema);

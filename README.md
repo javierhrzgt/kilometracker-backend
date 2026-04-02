@@ -4,7 +4,7 @@
 
 ![Estado](https://img.shields.io/badge/estado-en%20producci%C3%B3n-brightgreen)
 ![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-339933)
-![Express](https://img.shields.io/badge/Express-4.x-000000)
+![Express](https://img.shields.io/badge/Express-5.x-000000)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-blue)
 
@@ -37,14 +37,15 @@ La moneda del sistema es el **Quetzal guatemalteco (Q)** y los registros pueden 
 | Capa | Tecnología | Versión |
 |------|-----------|---------|
 | Runtime | Node.js | >= 18 |
-| Framework | Express | ^4.18.2 |
+| Framework | Express | ^5.2.1 |
 | Base de datos | MongoDB Atlas | Cloud |
-| ODM | Mongoose | ^7.6.3 |
-| Autenticación | jsonwebtoken + bcryptjs | ^9.0.2 / ^2.4.3 |
-| Validación | express-validator | ^7.0.1 |
+| ODM | Mongoose | ^9.3.3 |
+| Autenticación | jsonwebtoken + bcryptjs | ^9.0.2 / ^3.0.3 |
+| Validación | express-validator | ^7.3.2 |
 | Seguridad | helmet + cors | ^8.1.0 / ^2.8.5 |
+| Rate Limiting | express-rate-limit | ^8.3.2 |
 | Logging | Winston | ^3.19.0 |
-| Tests | Jest + Supertest + mongodb-memory-server | ^30 / ^7 / ^10 |
+| Tests | Jest + Supertest + mongodb-memory-server | ^30 / ^7 / ^11 |
 | Package manager | pnpm | — |
 | Deploy | Railway / Render | — |
 

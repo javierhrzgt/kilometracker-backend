@@ -17,17 +17,20 @@ Documentar el estado actual, las decisiones de diseño y el trabajo pendiente de
 | Capa | Tecnología | Versión |
 |---|---|---|
 | Runtime | Node.js | >= 18 |
-| Framework | Express | ^4.18.2 |
+| Framework | Express | ^5.2.1 |
 | Base de datos | MongoDB | Atlas (cloud) |
-| ODM | Mongoose | ^7.6.3 |
-| Auth | jsonwebtoken + bcryptjs | ^9.0.2 / ^2.4.3 |
-| Validación | express-validator | ^7.0.1 |
+| ODM | Mongoose | ^9.3.3 |
+| Auth | jsonwebtoken + bcryptjs | ^9.0.2 / ^3.0.3 |
+| Validación | express-validator | ^7.3.2 |
 | Seguridad | helmet, cors | ^8.1.0 / ^2.8.5 |
+| Rate Limiting | express-rate-limit | ^8.3.2 |
 | Logging | winston | ^3.19.0 |
 | Email (pendiente) | @brevo/node-sdk | — |
-| Tests | Jest + supertest + mongodb-memory-server | ^30 / ^7 / ^10 |
+| Tests | Jest + supertest + mongodb-memory-server | ^30 / ^7 / ^11 |
 | Package manager | pnpm | — |
 | Deploy | Railway / Render (producción actual) | — |
+
+> **Nota de compatibilidad:** Mongoose 9.x eliminó el soporte para callbacks `next()` en pre-middleware. Los hooks deben usar funciones async sin argumento `next` (ver `models/User.js` y `models/Vehicle.js`).
 
 ---
 
@@ -167,7 +170,7 @@ Rate limit estricto: 5 req / 15 min.
 | Archivo | Función |
 |---|---|
 | `middleware/auth.js` | `protect` (valida JWT), `authorize(...roles)` (RBAC) |
-| `middleware/rateLimiter.js` | `apiLimiter` (100 req/15 min), `authLimiter` (5 req/15 min) |
+| `middleware/rateLimiter.js` | `apiLimiter` (200 req/15 min), `loginLimiter` (5 req/15 min), `registerLimiter` (3 req/1 hora), `passwordResetLimiter` (3 req/15 min) - Todos con progressive blocking |
 | `middleware/requestLogger.js` | Logging de requests con `requestId` único |
 
 ---
