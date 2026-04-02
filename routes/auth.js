@@ -11,6 +11,7 @@ const Expense = require('../models/Expense');
 const { protect, authorize } = require('../middleware/auth');
 const { sendPasswordResetEmail } = require('../services/emailService');
 const { sendDeleteConfirmationEmail } = require('../utils/emailService');
+const { loginLimiter, registerLimiter, passwordResetLimiter } = require('../middleware/rateLimiter');
 const {
   registerValidation,
   loginValidation,
@@ -32,7 +33,7 @@ const generateToken = (id) => {
 };
 
 // Registro de usuario
-router.post('/register', registerValidation, async (req, res) => {
+router.post('/register', registerLimiter, registerValidation, async (req, res) => {
   try {
     const { username, email, password, role } = req.body;
     
@@ -74,7 +75,7 @@ router.post('/register', registerValidation, async (req, res) => {
 });
 
 // Login
-router.post('/login', loginValidation, async (req, res) => {
+router.post('/login', loginLimiter, loginValidation, async (req, res) => {
   try {
     const { email, password } = req.body;
     
@@ -196,7 +197,7 @@ router.put('/updatepassword', protect, updatePasswordValidation, async (req, res
 });
 
 // Solicitar recuperación de contraseña
-router.post('/forgotpassword', async (req, res) => {
+router.post('/forgotpassword', passwordResetLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -242,7 +243,7 @@ router.post('/forgotpassword', async (req, res) => {
 });
 
 // Restablecer contraseña con token
-router.put('/resetpassword/:token', async (req, res) => {
+router.put('/resetpassword/:token', passwordResetLimiter, async (req, res) => {
   try {
     const { password } = req.body;
 

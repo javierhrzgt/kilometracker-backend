@@ -189,11 +189,35 @@ Global error middleware in server.js:27-33 catches all errors. Route handlers re
 
 ### Rate Limiting
 
-Rate limiting is applied to prevent abuse:
-- General API rate limit: 100 requests per 15 minutes (middleware/rateLimiter.js)
-- Auth endpoints: 5 requests per 15 minutes (stricter for login/register)
-- Returns 429 status with `retryAfter` seconds when limit exceeded
-- In-memory implementation (clears old entries every hour)
+Rate limiting is applied to prevent abuse with enhanced security features:
+
+**Endpoint-specific limits:**
+| Endpoint | Limit | Window | Progressive Blocking |
+|----------|-------|--------|---------------------|
+| `POST /login` | 5 attempts | 15 minutes | Yes (+2x per 3 violations) |
+| `POST /register` | 3 registrations | 1 hour | Yes (+2x per 3 violations) |
+| `POST /forgotpassword` | 3 attempts | 15 minutes | Yes (+2x per 3 violations) |
+| `PUT /resetpassword/:token` | 5 attempts | 15 minutes | Yes (+2x per 3 violations) |
+| API general | 200 requests | 15 minutes | Yes (+2x per 5 violations) |
+
+**Features:**
+- Fingerprinting: Combines IP + User-Agent hash for unique identification
+- Progressive blocking: Repeated violations increase block duration (2x per 3 violations)
+- Rate limit headers in all responses:
+  - `X-RateLimit-Limit`: Maximum requests allowed
+  - `X-RateLimit-Remaining`: Requests remaining in window
+  - `X-RateLimit-Reset`: Unix timestamp when window resets
+  - `X-RateLimit-Violations`: Number of violations (when blocked)
+  - `X-RateLimit-Block-Duration`: Duration of current block (when blocked)
+- Returns 429 status with `retryAfter`, `violations`, and `blockedUntil` when exceeded
+- In-memory implementation with automatic cleanup every 30 minutes
+- Skipped in test environment (NODE_ENV=test)
+
+**Implementation:**
+- Middleware: `middleware/rateLimiter.js`
+- Exports: `loginLimiter`, `registerLimiter`, `passwordResetLimiter`, `apiLimiter`
+- Applied in `routes/auth.js` for auth endpoints
+- Applied globally in `server.js` for `/api/` routes
 
 ### Delete Patterns
 
