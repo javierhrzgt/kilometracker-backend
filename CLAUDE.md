@@ -198,7 +198,7 @@ Rate limiting is applied to prevent abuse with enhanced security features:
 | `POST /register` | 3 registrations | 1 hour | Yes (+2x per 3 violations) |
 | `POST /forgotpassword` | 3 attempts | 15 minutes | Yes (+2x per 3 violations) |
 | `PUT /resetpassword/:token` | 5 attempts | 15 minutes | Yes (+2x per 3 violations) |
-| API general | 200 requests | 15 minutes | Yes (+2x per 5 violations) |
+| API general | 200 requests | 15 minutes | Yes (+2x per 3 violations) |
 
 **Features:**
 - Fingerprinting: Combines IP + User-Agent hash for unique identification
@@ -214,10 +214,9 @@ Rate limiting is applied to prevent abuse with enhanced security features:
 - Skipped in test environment (NODE_ENV=test)
 
 **Implementation:**
-- Middleware: `middleware/rateLimiter.js`
+- Middleware: `middleware/rateLimiter.js` (using express-rate-limit)
 - Exports: `loginLimiter`, `registerLimiter`, `passwordResetLimiter`, `apiLimiter`
-- Applied in `routes/auth.js` for auth endpoints
-- Applied globally in `server.js` for `/api/` routes
+- Applied globally in `server.js` for `/api/` routes (apiLimiter)
 
 ### Delete Patterns
 
