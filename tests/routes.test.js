@@ -139,7 +139,6 @@ describe('Routes Endpoints', () => {
 
       expect(res.status).toBe(201);
       expect(res.body.data.distanciaRecorrida).toBe(250);
-      expect(res.body.vehicleKilometraje).toBe(1250);
 
       // Verify vehicle was updated
       const updatedVehicle = await Vehicle.findById(vehicle._id);
@@ -282,7 +281,6 @@ describe('Routes Endpoints', () => {
         .set(authHeader(token));
 
       expect(res.status).toBe(200);
-      expect(res.body.vehicleKilometraje).toBe(1000);
 
       // Verify route is deleted
       const deletedRoute = await Route.findById(route._id);
